@@ -1,7 +1,27 @@
+---
+title: "Logs de la asignatura en Aula Virtual durante el curso 2024-2025"
+subtitle: "Análisis de datos"
+author: "Grupo P - Joyce, Marcos, Sergio, Andrés y Lorena"
+lang: es
+output: 
+  bookdown::html_document2:
+    toc: true
+    number_sections: true
+    theme: lumen
+---
 
--- Introducción --
+```{r setup, include=FALSE}
+
+library(tidyverse) 
+library(lubridate) 
+
+options(OutDec = ",", digits = 2)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+#Introducción
 
 Somos el grupo de Lorena, Joyce, Sergio, Andrés y Marcos. En este trabajo vamos 
 a estudiar los accesos al aula virtual de los alumnos del curso pasado de la 
-asignatura "Tratamiento de Datos", datos que nos ayudara a conocer los horarios 
-de estudio de los estudiantes y su frecuencia de acceso...
+asignatura "Tratamiento de Datos"; datos que nos ayudara a conocer los horarios 
+de estudio de los estudiantes, su frecuencia de acceso...
