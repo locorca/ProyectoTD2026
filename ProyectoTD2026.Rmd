@@ -25,3 +25,38 @@ Somos el grupo de Lorena, Joyce, Sergio, Andrés y Marcos. En este trabajo vamos
 a estudiar los accesos al aula virtual de los alumnos del curso pasado de la 
 asignatura "Tratamiento de Datos"; datos que nos ayudara a conocer los horarios 
 de estudio de los estudiantes, su frecuencia de acceso...
+
+
+```{r}
+# el dataset
+logs<- read.csv("data/logs_moodle_anon.csv", sep = ",")
+# Estructura del dataset
+str(logs)
+# Primeras filas
+head(logs)
+# Resumen general
+summary(logs)
+# Número de filas y columnas
+dim(logs)
+# Comprobacion valores faltantes por variable
+colSums(is.na(logs))
+
+#  explicación de cada variable
+#"Hora" "Fecha y hora exacta en la que se registró el evento.",
+#"Nombre.completo.del.usuario":"Identificador anonimizado del usuario que realizó la acción.",
+#"Usuario.afectado": "Usuario sobre el que recae la acción (si aplica).",
+#"Contexto.del.evento",:"Lugar dentro de Moodle donde ocurrió el evento (curso, tarea, foro, etc.).",
+#"Componente": "Módulo o componente de Moodle implicado en el evento.",
+#"Nombre.evento":"Tipo de acción realizada (curso visto, tarea enviada, archivo descargado, etc.).",
+#"Descripción":"Descripción detallada del evento generada por Moodle.",
+#"Origen":"Origen de la acción: web, móvil, app, etc.",
+# "Dirección.IP": "Dirección IP desde la que se realizó la acción."
+ 
+    
+
+
+
+
+
+```
+
