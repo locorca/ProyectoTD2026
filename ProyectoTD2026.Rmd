@@ -27,60 +27,68 @@ asignatura "Tratamiento de Datos"; datos que nos ayudara a conocer los horarios
 de estudio de los estudiantes, su frecuencia de acceso...
 
 
-```{r}
+
 # Importación y Adecuación de los Datos
-#En este bloque mostramos el proceso técnico para preparar los datos, tal como se solicita en los requisitos de la fase.
 
-
+```{r}
 
 # el dataset
 logs<- read.csv("data/logs_moodle_anon.csv", sep = ",")
+
 # Estructura del dataset
 str(logs)
+
 # Primeras filas
 head(logs)
+
 # Resumen general
 summary(logs)
-# Vemos el tipo de cada columna (si es texto, entero, etc.)
-# Esto justifica por qué luego necesitamos 'lubridate'
+
+# Vemos el tipo de cada columna
 glimpse(logs)
+
 # Número de filas y columnas
 dim(logs)
-# Comprobacion valores faltantes por variable
+
+# Comprobación valores faltantes por variable
 colSums(is.na(logs))
 
-#  explicación de cada variable
-#"Hora" "Fecha y hora exacta en la que se registró el evento.",
-#"Nombre.completo.del.usuario":"Identificador anonimizado del usuario que realizó la acción.",
-#"Usuario.afectado": "Usuario sobre el que recae la acción (si aplica).",
-#"Contexto.del.evento",:"Lugar dentro de Moodle donde ocurrió el evento (curso, tarea, foro, etc.).",
-#"Componente": "Módulo o componente de Moodle implicado en el evento.",
-#"Nombre.evento":"Tipo de acción realizada (curso visto, tarea enviada, archivo descargado, etc.).",
-#"Descripción":"Descripción detallada del evento generada por Moodle.",
-#"Origen":"Origen de la acción: web, móvil, app, etc.",
-# "Dirección.IP": "Dirección IP desde la que se realizó la acción."
+# Explicación de cada variable
+
+#"Hora": Fecha y hora exacta en la que se registró el evento.
+#"Nombre.completo.del.usuario":Identificador anonimizado del usuario que realizó la acción.
+#"Usuario.afectado": Usuario sobre el que recae la acción (si aplica).
+#"Contexto.del.evento": Lugar dentro de Moodle donde ocurrió el evento (curso, tarea, foro, etc.).
+#"Componente": Módulo o componente de Moodle implicado en el evento.
+#"Nombre.evento": Tipo de acción realizada (curso visto, tarea enviada, archivo descargado, etc.).
+#"Descripción": Descripción detallada del evento generada por Moodle.
+#"Origen": Origen de la acción: web, móvil, app, etc.
+# "Dirección.IP": Dirección IP desde la que se realizó la acción.
  
-    
 
 
 # Los registros de tiempo vienen como texto (Character).
 # Usamos dmy_hms() para que R los reconozca como fechas reales (Día/Mes/Año Hora:Min:Seg).
+
 logs <- logs %>%
   mutate(
-    Fecha_Completa = dmy_hms(Hora),    # Convertimos a formato fecha+hora
-    Solo_Fecha = as.Date(Fecha_Completa) # Extraemos solo el día para la gráfica)
+    Fecha_Completa = dmy_hms(Hora),   
+    Solo_Fecha = as.Date(Fecha_Completa) 
 )
+
 ```
 
 # Análisis Exploratorio Inicial
 
-
 Para entender qué partes del Aula Virtual tienen más peso, agrupamos los datos por el tipo de recurso interactuado. 
-En la Tabla \@ref(tab:tabla-logs) se muestran los 10 más frecuentes.
+
+
+En la Tabla \@ref(tab:tabla-logs) se detallan los 10 componentes con mayor número de registros en la plataforma.
 
 ```{r tabla-logs}
 
 # Usamos group_by y summarise para contar cuántas veces aparece cada componente.
+
 resumen_tabla <- logs %>%
   group_by(Componente) %>%
   summarise(Frecuencia = n()) %>%
@@ -88,27 +96,29 @@ resumen_tabla <- logs %>%
   slice(1:10)                   # Nos quedamos con los 10 primeros
 
 # Generamos la tabla con numeración automática (Referencias Cruzadas)
+
 knitr::kable(resumen_tabla, 
              caption = "Distribución de los 10 componentes con mayor actividad")
+
 ```
 
-##
-La Figura \@ref(fig:grafico-evolucion) refleja el volumen de interacciones diarias. 
+Con el objetivo de analizar la intensidad de uso de la plataforma a lo largo del tiempo, 
+
+la Figura \@ref(fig:grafico-evolucion) muestra la distribución diaria de los eventos registrados durante el periodo lectivo.
 
 ```{r grafico-evolucion, fig.cap="Evolución de registros totales por día"}
+
 # Usamos geom_bar para ver la frecuencia de eventos en cada fecha.
+
 ggplot(logs, aes(x = Solo_Fecha)) +
-  geom_bar(fill = "steelblue", color = "white") +
+  geom_line(stat = "count", color = "blue") +
   labs(
-    title = "Histórico de eventos registrados",
-    x = "Fecha del curso",
-    y = "Número de interacciones"
-  ) +
-  theme_minimal()
+    title = "Histórico de interacciones por día",
+    x = "Fecha",
+    y = "Número de eventos registrados"
+  )
+
 ```
-
-
-
 
 ```
 
