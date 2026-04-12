@@ -1,1 +1,7 @@
 
+-- Introducción --
+
+Somos el grupo de Lorena, Joyce, Sergio, Andrés y Marcos. En este trabajo vamos 
+a estudiar los accesos al aula virtual de los alumnos del curso pasado de la 
+asignatura "Tratamiento de Datos", datos que nos ayudara a conocer los horarios 
+de estudio de los estudiantes y su frecuencia de acceso...
