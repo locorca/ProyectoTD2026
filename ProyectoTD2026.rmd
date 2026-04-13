@@ -134,7 +134,35 @@ logs_alumnos <- logs %>%
 
 > Ya que hemos identificado  a los profesores y alumnos, podemos analizar sus actividades por separado para entender mejor sus patrones de uso en la plataforma. Esto nos permitirá obtener vistas  más específicos sobre cómo cada grupo interactúa con el Aula Virtual.
 
-## Análisis Exploratorio Inicial
+## Análisis Exploratorio Inicial 
+### Posbiles preguntas a las que se le puede dar respuesta con este dataset: 
+#### Alumnos (logs_alumnos)
+- [ ] 1. ¿A qué hora se conectan más?
+-  [ ] 2. ¿Qué día de la semana hay más actividad?
+-  [ ] 3. ¿En qué semanas hay picos de estrés (exámenes)?
+-  [ ] 4. ¿Estudian constante o pegan "atracones"?
+-  [ ] 5. ¿En qué fechas se entregan más tareas?
+-  [ ] 6. ¿Qué recursos del Aula Virtual se ignoran más?
+-  [ ] 7. ¿A qué hora prefieren entrar desde el móvil?
+-  [ ] 8. ¿Cuánta diferencia de clics hay entre el más y menos activo?
+-  [ ] 9. ¿Qué porcentaje de clics es solo "mirar" pasivamente?
+-  [ ] 10. ¿Desde cuántas redes (IPs) distintas se conectan?
+
+#### Profesores (logs_profesores)
+
+- [ ] 11. ¿Trabajan en noches o fines de semana?
+- [ ] 12. ¿Qué profesor hace casi todo el trabajo?
+- [ ] 13. ¿Trabajan a diario o en picos puntuales?
+- [ ] 14. ¿Suben más teoría (recursos) o práctica (tareas)?
+- [ ] 15. ¿Crean material todo el curso o solo al inicio?
+- [ ] 16. ¿Cuántos clics dedican a vigilar registros de alumnos? ("Informe de registro visualizado", "Informe de actividad visto")
+
+#### Comparativa (Alumnos vs. Profesores)
+
+- [ ] 17. ¿Cuánto tardan los alumnos en abrir el material nuevo?
+- [ ] 18. ¿Qué herramientas usa el profe pero el alumno ignora?
+- [ ] 19. ¿Coinciden sus días de trabajo en la semana?
+- [ ] 20. ¿Quién accede más desde el móvil, alumnos o profes?
 
 Para entender qué partes del Aula Virtual tienen más peso, agrupamos los datos por el tipo de recurso interactuado. 
 
