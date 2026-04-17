@@ -191,7 +191,7 @@ Para entender qué partes del Aula Virtual tienen más peso, agrupamos los datos
 En la Tabla \@ref(tab:tabla-logs) se detallan los 10 componentes con mayor número de registros en la plataforma.
 
 ```{r tabla-logs, fig.pos = 'H'}
-# Usamos group_by y summarise para contar cuántas veces aparece cada componente.
+# Usamos group_by y summarise
 
 resumen_tabla <- logs %>%
   group_by(Componente) %>%
