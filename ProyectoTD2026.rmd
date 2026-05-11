@@ -5,110 +5,79 @@ author: "Grupo P - Joyce, Marcos, Sergio, Andrés y Lorena"
 lang: es
 output: 
   bookdown::pdf_document2:
-    toc: true
     number_sections: true
+header-includes:
+  - \renewcommand{\spanishtablename}{Tabla}
 ---
 
 ```{r setup, include=FALSE}
-options(repos = c(CRAN = "https://cloud.r-project.org"))
-
-paquetes_pracma <- c(
-  "knitr", "readr", "readxl", "haven", "jsonlite", "hms",
-  "lubridate", "tidyr", "dplyr", "magrittr", "ggplot2",
-  "RColorBrewer", "tidyverse", "dbplyr", "nycflights13",
-  "car", "GGally", "writexl", "anytime"
-)
-
-paquetes_pracma <- sort(unique(paquetes_pracma))
-faltan <- setdiff(paquetes_pracma, rownames(installed.packages()))
-if (length(faltan) > 0) install.packages(faltan, dependencies = TRUE)
-invisible(sapply(paquetes_pracma, require, character.only = TRUE))
-
-
+library(tidyverse)
+library(lubridate)
+library(knitr)
+options(OutDec = ",", digits = 3)
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
-## Introducción
+\newpage
 
-Somos el grupo de Lorena, Joyce, Sergio, Andrés y Marcos. En este trabajo vamos 
-a estudiar los accesos al aula virtual de los alumnos del curso pasado de la 
-asignatura "Tratamiento de Datos"; datos que nos ayudara a conocer los horarios 
-de estudio de los estudiantes, su frecuencia de acceso...
+El presente informe detalla el Análisis Exploratorio de Datos (EDA) realizado sobre los registros de actividad del Aula Virtual durante el curso 2025-2026. A través de técnicas de preprocesamiento, análisis univariante y multivariante, se identifican patrones críticos de comportamiento en estudiantes y docentes. El estudio revela una tendencia al "atracón" de estudio en fechas próximas a exámenes y una brecha significativa en el uso de herramientas móviles entre perfiles.
 
+Keywords: EDA, Logs, Moodle, Patrones de comportamiento, Ciencia de Datos.
 
-## Importación y Adecuación de los Datos
+# Introducción
 
-```{r}
-# el dataset
-logs <- read.csv("./data/logs_moodle_anon.csv", sep = ",")
+## Contexto del estudio
 
-# Estructura del dataset
-str(logs)
+El Aula Virtual centraliza materiales, tareas, cuestionarios y comunicación docente-estudiante. Analizar sus registros permite entender **hábitos de uso**, **momentos de mayor carga** y diferencias entre perfiles de usuarios.
 
-# Resumen general
-summary(logs)
+El dataset utilizado contiene logs anonimizados con variables de fecha-hora, usuario, componente del sistema, evento, origen e IP. A través de este proyecto se ponen en práctica los conceptos de la asignatura para comprender patrones de comportamiento de estudiantes y profesorado.
 
-# Vemos el tipo de cada columna
-glimpse(logs)
+## Preguntas iniciales
 
-# Número de filas y columnas
-dim(logs)
+1. ¿A qué hora se conectan más los alumnos?  
+2. ¿Qué día de la semana hay más actividad?  
+3. ¿En qué semanas hay picos de estrés (exámenes)?  
+4. ¿En qué fechas se entregan más tareas?  
+5. ¿Qué recursos del Aula Virtual se ignoran más? 
+6. ¿Cuánta diferencia de clics hay entre el más y menos activo? 
+7. ¿Cuánto tardan los alumnos en abrir el material nuevo?
+8. ¿Qué porcentaje de clics es solo "mirar" pasivamente?  
+9. Porcentaje de alumnos que cumplen entregas.
+10. ¿Desde cuántas redes (IPs) distintas se conectan?  
+11. ¿Trabajan en noches o fines de semana?  
+12. ¿Qué profesor pasa más tiempo en el Aula Virtual?  
+13. ¿Suben más teoría (recursos) o práctica (tareas)?  
+14. ¿Crean material todo el curso o solo al inicio?  
+ 
+# Importación y preparación de los datos
 
-# Comprobación valores faltantes por variable
-colSums(is.na(logs))
+La fase de preparación es crítica en cualquier flujo de Ciencia de Datos. El objetivo es transformar un registro de actividad bruto (Raw Logs) en un conjunto de datos estructurado y enriquecido que permita extraer conocimiento significativo.
 
-# Explicación de cada variable
+## Carga de datos
 
-# "Hora": Fecha y hora exacta en la que se registró el evento.
-# "Nombre.completo.del.usuario":Identificador anonimizado del usuario que realizó la acción.
-# "Usuario.afectado": Usuario sobre el que recae la acción (si aplica).
-# "Contexto.del.evento": Lugar dentro de Moodle donde ocurrió el evento (curso, tarea, foro, etc.).
-# "Componente": Módulo o componente de Moodle implicado en el evento.
-# "Nombre.evento": Tipo de acción realizada (curso visto, tarea enviada, archivo descargado, etc.).
-# "Descripción": Descripción detallada del evento generada por Moodle.
-# "Origen": Origen de la acción: web, móvil, app, etc.
-# "Dirección.IP": Dirección IP desde la que se realizó la acción.
+El dataset original se compone de registros de texto. Para poder realizar análisis temporales, se ha procedido a la conversión de la variable  al formato datetime utilizando la librería . Además, se han derivado nuevas variables ( feature engineering ) para capturar la estacionalidad y el tipo de dispositivo de acceso.
 
+Dado que el dataset no incluye una etiqueta explícita de "rol", se ha implementado un algoritmo de clasificación operativa. Este se basa en la detección de eventos administrativos exclusivos (como la creación de secciones o módulos). Aquellos usuarios que han realizado estas acciones son etiquetados como Profesores, mientras que el resto se clasifica como Alumnos.
 
-# Los registros de tiempo vienen como texto (Character).
-# Usamos dmy_hms() para que R los reconozca como fechas reales (Día/Mes/Año Hora:Min:Seg).
+```{r resumen-estructura, echo=FALSE}
 
-logs <- logs %>%
+logs_raw <- read.csv("data/logs_moodle_anon.csv", sep = ",", stringsAsFactors = FALSE)
+
+logs <- logs_raw %>%
   mutate(
     Fecha_Completa = dmy_hms(Hora),
-    Solo_Fecha = as.Date(Fecha_Completa)
+    Solo_Fecha = as.Date(Fecha_Completa),
+    Hora_num = hour(Fecha_Completa),
+    Dia_semana_num = wday(Fecha_Completa, week_start = 1),
+    Dia_semana = factor(
+      c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")[Dia_semana_num],
+      levels = c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+    ),
+    Semana = isoweek(Fecha_Completa),
+    Es_fin_semana = Dia_semana %in% c("Sábado", "Domingo"),
+    Es_noche = Hora_num >= 22 | Hora_num < 6,
+    Es_movil = str_detect(str_to_lower(Origen), "mobile|móvil|movil|app")
   )
-```
-
-
-## Diferenciación entre alumnos y profesores.
-
-Para poder analizar estos datos con más detalle, es necesario diferenciar entre alumnos y profesores. Para ello, vamos a identificar a los profesores basándonos en los eventos que suelen realizar (como crear secciones, calificar tareas, etc.) y luego filtraremos el dataset para quedarnos solo con sus registros. 
-
->  Crearemos diferentes data frames para cada grupo (profesores y alumnos) y así poder analizarlos por separado (las posibles actividades que puede hacer cada uno). 
-
-###  Profesores 
-
-```{r}       
-
-# Vemos que eventos suele realizar un profesor, para ello filtramos por eventos relacionados con la calificación de tareas o creación de secciones.
-
-unique(logs$Nombre.evento)
-
-# Filtramos por porsibles palabras como "calificación", "sección creada", "módulo creado" o "módulo actualizado".
-
-posible_actividades <- logs$Nombre.evento[grepl("calificación|sección creada|módulo creado|módulo actualizado", logs$Nombre.evento, ignore.case = TRUE)] %>%
-  unique()
-
-# Vemos como se ven de esas actividades con un head(1)
-
-for (i in posible_actividades) {
-  print(paste("Eventos relacionados con:", i))
-  print(head(logs %>% filter(grepl(i, Nombre.evento, ignore.case = TRUE)), 1))
-}
-
-# Vemos que realmente los profesores no ponen las calificaciones el moodle pone las propias calificiaciones (tecnicamente el alumno se autocalifica)
-# Eso signficia que los eventos asociados con los profesores son :
 
 eventos_profesor_estricto <- c(
   "Sección del curso creada",
@@ -121,113 +90,32 @@ profesores_ids <- logs %>%
   distinct(Nombre.completo.del.usuario) %>%
   pull()
 
-# Profesores
-
-cat("Identificadores de profesores:\n")
-print(profesores_ids)
-cat("Número de profesores identificados:", length(profesores_ids), "\n")
-
-``` 
-
-### Alumnos
-
-Para identificar a los alumnos, es un not de la interseccion de los profesores (not in) 
-
-```{r}
-
 alumnos_ids <- logs %>%
   filter(!Nombre.completo.del.usuario %in% profesores_ids) %>%
   distinct(Nombre.completo.del.usuario) %>%
   pull()
 
-# Alumnos
+logs_profesores <- logs %>% filter(Nombre.completo.del.usuario %in% profesores_ids)
+logs_alumnos <- logs %>% filter(Nombre.completo.del.usuario %in% alumnos_ids)
 
-cat("Identificadores de alumnos:\n")
-print(alumnos_ids)
-cat("Número de alumnos identificados:", length(alumnos_ids), "\n")
-
-``` 
-
-
-### Data frame de profesores y alumnos
-
-```{r}
-
-# Data frame de profesores
-logs_profesores <- logs %>%
-  filter(Nombre.completo.del.usuario %in% profesores_ids)
-
-# Data frame de alumnos
-logs_alumnos <- logs %>%
-  filter(!Nombre.completo.del.usuario %in% profesores_ids)
-
-```
-
-
-> Ya que hemos identificado  a los profesores y alumnos, podemos analizar sus actividades por separado para entender mejor sus patrones de uso en la plataforma. Esto nos permitirá obtener vistas  más específicos sobre cómo cada grupo interactúa con el Aula Virtual.
-
-\newpage
-## Análisis Exploratorio Inicial 
-### Posbiles preguntas a las que se le puede dar respuesta con este dataset: 
-#### Alumnos (logs_alumnos)
-
--  [ ] 1. ¿A qué hora se conectan más?
--  [ ] 2. ¿Qué día de la semana hay más actividad?
--  [ ] 3. ¿En qué semanas hay picos de estrés (exámenes)?
-
-
--  [ ] 4. ¿En qué fechas se entregan más tareas?
--  [ ] 5. ¿Qué recursos del Aula Virtual se ignoran más?
-
-
--  [ ] 6. ¿Cuánto tardan los alumnos en abrir el material nuevo?
--  [ ] 8. ¿Cuánta diferencia de clics hay entre el más y menos activo?
-
-
--  [ ] 8. ¿Qué porcentaje de clics es solo "mirar" pasivamente?
--  [ ] 9. Porcentaje de alumnos que cumplen entregas.
-
-
-- [ ] 10. ¿Qué profesor hace casi todo el trabajo?
-- [ ] 11. ¿Suben más teoría (recursos) o práctica (tareas)?
-- [ ] 12. ¿Crean material todo el curso o solo al inicio?
-
-
-Para entender qué partes del Aula Virtual tienen más peso, agrupamos los datos por el tipo de recurso interactuado. 
-
-
-En la Tabla \@ref(tab:tabla-logs) se detallan los 10 componentes con mayor número de registros en la plataforma.
-
-```{r tabla-logs, fig.pos = 'H'}
-# Usamos group_by y summarise
-
-resumen_tabla <- logs %>%
-  group_by(Componente) %>%
-  summarise(Frecuencia = n()) %>%
-  arrange(desc(Frecuencia)) %>% # Orden descendente (de más a menos)
-  slice(1:10) # Nos quedamos con los 10 primeros
-
-# Generamos la tabla con numeración automática (Referencias Cruzadas)
-
-knitr::kable(resumen_tabla,
-  caption = "Distribución de los 10 componentes con mayor actividad"
-)
-```
-
-Con el objetivo de analizar la intensidad de uso de la plataforma a lo largo del tiempo, 
-
-la Figura \@ref(fig:grafico-evolucion) muestra la distribución diaria de los eventos registrados durante el periodo lectivo.
-
-```{r grafico-evolucion, fig.cap="Evolución de registros totales por día", fig.pos = 'H'}
-# Usamos geom_bar para ver la frecuencia de eventos en cada fecha.
-
-ggplot(logs, aes(x = Solo_Fecha)) +
-  geom_line(stat = "count", color = "blue") +
-  labs(
-    title = "Histórico de interacciones por día",
-    x = "Fecha",
-    y = "Número de eventos registrados"
+resumen_estructura <- tibble(
+  dataset = c("Total", "Profesores", "Alumnos"),
+  registros = c(nrow(logs), nrow(logs_profesores), nrow(logs_alumnos)),
+  usuarios = c(
+    n_distinct(logs$Nombre.completo.del.usuario),
+    n_distinct(logs_profesores$Nombre.completo.del.usuario),
+    n_distinct(logs_alumnos$Nombre.completo.del.usuario)
   )
+)
+
+knitr::kable(resumen_estructura, 
+             booktabs = TRUE, 
+             caption = "Resumen de la estructura y segmentación del dataset según el rol operativo") %>%
+  kableExtra::kable_styling(latex_options = c("striped", "hold_position"))
 ```
+
+Como muestra la Tabla \@ref(tab:resumen-estructura), hay una gran diferencia de actividad entre alumnos y profesores. Es normal que los alumnos generen casi todos los registros, ya que son quienes más interactúan con los materiales.
+
+Esta diferencia es positiva para el estudio, porque nos permite analizar a cada grupo por separado. Además, al tener un número alto de usuarios, sabemos que los resultados que veremos después representan el comportamiento de todo el grupo y no solo de unas pocas personas.
 
 
