@@ -10,9 +10,21 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-library(tidyverse)
-library(lubridate)
-options(OutDec = ",", digits = 2)
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+paquetes_pracma <- c(
+  "knitr", "readr", "readxl", "haven", "jsonlite", "hms",
+  "lubridate", "tidyr", "dplyr", "magrittr", "ggplot2",
+  "RColorBrewer", "tidyverse", "dbplyr", "nycflights13",
+  "car", "GGally", "writexl", "anytime"
+)
+
+paquetes_pracma <- sort(unique(paquetes_pracma))
+faltan <- setdiff(paquetes_pracma, rownames(installed.packages()))
+if (length(faltan) > 0) install.packages(faltan, dependencies = TRUE)
+invisible(sapply(paquetes_pracma, require, character.only = TRUE))
+
+
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
