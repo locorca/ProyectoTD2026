@@ -659,6 +659,10 @@ comparativa_dias %>%
 ```
 
 
+En cuanto al uso del móvil, **`r grupo_mas_movil`** presenta una mayor proporción de accesos desde dispositivos móviles: el **`r round(pct_movil_alumnos, 1)`%** de los eventos de los alumnos proviene de móvil, frente al **`r round(pct_movil_profes, 1)`%** del profesorado. Esta diferencia tiene sentido: gestionar contenidos, configurar actividades o revisar entregas desde un dispositivo móvil es considerablemente más incómodo que hacerlo desde un ordenador, por lo que el profesorado tiende a reservar el móvil solo para consultas puntuales. Los alumnos, en cambio, utilizan el móvil de forma más habitual para consultar materiales o verificar el estado de sus entregas, especialmente cuando están fuera de casa.
+
+
+
 
 
 
