@@ -45,17 +45,17 @@ En este proyecto de Análisis Exploratorio de Datos se estudian los registros de
 
 Las plataformas de gestión del aprendizaje como Moodle registran automáticamente cada interacción de sus usuarios: accesos a contenidos, envíos de tareas, consultas de foros, creación de materiales por parte del profesorado... Este rastro digital, denominado *log de actividad*, constituye una fuente de información extraordinaria para comprender cómo se relacionan alumnos y docentes con el entorno virtual de una asignatura, con qué intensidad lo hacen y en qué momentos se concentra ese uso.
 
-El presente informe analiza los registros de actividad del Aula Virtual de la asignatura Tratamiento de Datos durante el curso 2025-2026. El dataset contiene eventos anonimizados que recogen, para cada interacción, la marca temporal, el usuario que la genera, el componente del sistema implicado, el tipo de evento, el canal de acceso y la dirección IP desde la que se produce.
+El presente informe analiza los registros de actividad del Aula Virtual de la asignatura Tratamiento de Datos durante el curso 2025-2026. El dataset contiene eventos anonimizados que recogen, para cada interacción, la marca temporal, el usuario que la genera, el componente del sistema implicado, el tipo de evento y la dirección IP desde la que se produce.
 
 ## Preguntas de investigación
 
 El punto de partida del análisis fue un proceso de *brainstorming* en el que el equipo planteó las preguntas que consideró más relevantes sobre el uso del Aula Virtual. Estas preguntas se agruparon en tres bloques según el perfil de usuario al que se refieren.
 
-Sobre el **alumnado** se plantearon cuestiones relacionadas con los patrones temporales de conexión (horas y días de mayor actividad, semanas de mayor carga), con la regularidad o irregularidad del estudio a lo largo del semestre, con la intensidad y el tipo de uso (diferencias entre usuarios, proporción de actividad pasiva frente a activa, recursos que se ignoran) y con aspectos de conectividad como el número de redes distintas desde las que se accede o el uso del dispositivo móvil.
+Sobre el **alumnado** se plantearon cuestiones relacionadas con los patrones temporales de conexión (horas y días de mayor actividad, semanas de mayor carga), con la regularidad o irregularidad del estudio a lo largo del semestre, con la intensidad y el tipo de uso (diferencias entre usuarios, proporción de actividad pasiva frente a activa, recursos que se ignoran)...
 
 Sobre el **profesorado** las preguntas se centraron en la distribución de la carga de trabajo entre los docentes, su patrón de actividad a lo largo del tiempo (regularidad frente a picos puntuales, presencia fuera del horario lectivo), el tipo de contenido que generan y la atención que dedican al seguimiento del alumnado.
 
-Finalmente, el bloque **comparativo** aborda aspectos que solo cobran sentido al contrastar los dos perfiles: la velocidad con que el alumnado reacciona ante la publicación de nuevo material, las herramientas que usa el profesorado pero el alumnado ignora, el grado de coincidencia en los patrones semanales y las diferencias en el uso del móvil.
+Finalmente, el bloque **comparativo** aborda aspectos que solo cobran sentido al contrastar los dos perfiles: la velocidad con que el alumnado reacciona ante la publicación de nuevo material, las herramientas que usa el profesorado pero el alumnado ignora, el grado de coincidencia en los patrones semanales...
 
 \newpage
 
@@ -65,7 +65,7 @@ Finalmente, el bloque **comparativo** aborda aspectos que solo cobran sentido al
 
 El dataset original se encuentra en formato CSV y contiene un registro por cada evento registrado por Moodle. La primera tarea tras la carga es convertir la variable `Hora`, que Moodle exporta como texto, a un tipo *datetime* propiamente dicho mediante la función `dmy_hms` de la librería `lubridate`. Esta conversión es imprescindible para cualquier análisis temporal posterior.
 
-A partir de la marca temporal se derivan varias variables adicionales que facilitan el análisis: la hora del día en formato numérico (0–23), el día de la semana como factor ordenado, el número de semana ISO del año, y dos indicadores binarios que señalan si el evento ocurre en horario nocturno (entre las 22:00 y las 06:00) o en fin de semana (sábado o domingo). Por último, se genera un indicador de acceso desde dispositivo móvil inspeccionando el campo `Origen` en busca de cadenas asociadas a aplicaciones o navegadores móviles. Este conjunto de variables derivadas permitirá responder a las preguntas de investigación planteadas sin necesidad de recalcular estas condiciones en cada análisis.
+A partir de la marca temporal se derivan varias variables adicionales que facilitan el análisis: la hora del día en formato numérico (0–23), el día de la semana como factor ordenado, el número de semana ISO del año, y dos indicadores binarios que señalan si el evento ocurre en horario nocturno (entre las 22:00 y las 06:00) o en fin de semana (sábado o domingo). Este conjunto de variables derivadas permitirá responder a las preguntas de investigación planteadas sin necesidad de recalcular estas condiciones en cada análisis.
 
 ```{r carga-y-preparacion}
 
@@ -84,7 +84,6 @@ logs <- logs_raw %>%
     Semana        = isoweek(Fecha_Completa),
     Es_fin_semana = Dia_semana %in% c("Sábado","Domingo"),
     Es_noche      = Hora_num >= 22 | Hora_num < 6,
-    Es_movil      = str_detect(str_to_lower(Origen), "mobile|móvil|movil|app")
   )
 ```
 
@@ -92,7 +91,7 @@ logs <- logs_raw %>%
 
 Antes de extraer cualquier conclusión es imprescindible garantizar la calidad de los datos. Se realizaron dos comprobaciones básicas: la detección de registros duplicados exactos y la identificación de valores faltantes. En cuanto a los duplicados, fueron eliminados para evitar que inflen las frecuencias de uso. Aunque su número es pequeño en términos relativos, su presencia no es trivial.
 
-La Tabla \@ref(tab:limpieza) detalla las variables que presentan valores faltantes tras la carga. Como puede observarse, los NA se concentran en la variable derivada `Es_movil`, lo que se debe a que algunos registros no tienen informado el campo `Origen` en el CSV original. Esta ausencia no afecta al análisis temporal ni a la identificación de usuarios, por lo que no requiere imputación; simplemente implica que esos eventos quedarán excluidos de los cálculos relativos al uso del móvil. El resto de variables relevantes para el estudio están completamente informadas.
+La Tabla \@ref(tab:limpieza) detalla las variables que presentan valores faltantes tras la carga.
 
 ```{r limpieza}
 n_duplicados <- sum(duplicated(logs_raw))
@@ -183,7 +182,6 @@ recursos_ignorados    <- uso_comp_total %>%
   filter(n_alumnos == 0) %>%
   arrange(desc(n_total))
 
-alumnos_movil_hora <- logs_alumnos %>% filter(Es_movil) %>% count(Hora_num, sort = TRUE)
 clics_por_alumno   <- logs_alumnos %>% count(Nombre.completo.del.usuario, name = "clics")
 ips_por_alumno     <- logs_alumnos %>%
   group_by(Nombre.completo.del.usuario) %>%
@@ -305,21 +303,16 @@ dia_top_alumnos <- alumnos_dia$Dia_semana[[1]]
 dia_top_profes  <- dist_dias_profes %>%
   arrange(desc(n_profes)) %>% slice(1) %>% pull(Dia_semana)
 
-pct_movil_alumnos <- 100 * mean(logs_alumnos$Es_movil,    na.rm = TRUE)
-pct_movil_profes  <- 100 * mean(logs_profesores$Es_movil, na.rm = TRUE)
-grupo_mas_movil   <- ifelse(pct_movil_alumnos > pct_movil_profes, "Alumnos", "Profesores")
-
 perfil_alumnos <- logs_alumnos %>%
   group_by(Nombre.completo.del.usuario) %>%
   summarise(clics         = n(),
             dias_activos  = n_distinct(Solo_Fecha),
             ips_distintas = n_distinct(Dirección.IP),
-            pct_movil     = 100 * mean(Es_movil, na.rm = TRUE),
             media_hora    = mean(Hora_num, na.rm = TRUE),
             .groups = "drop")
 
 vars_num   <- perfil_alumnos %>%
-  select(clics, dias_activos, ips_distintas, pct_movil, media_hora)
+  select(clics, dias_activos, ips_distintas, media_hora)
 matriz_cor <- cor(vars_num, use = "pairwise.complete.obs", method = "pearson")
 ```
 
@@ -541,18 +534,6 @@ logs_alumnos %>%
   geom_boxplot(fill = "#FDBB84") +
   labs(x = "Día de la semana", y = "Clics diarios") +
   theme_minimal()
-```
-
-El uso del dispositivo móvil presenta también un patrón temporal diferenciado. La Figura \@ref(fig:movil-hora) muestra la distribución horaria de los accesos desde móvil por parte del alumnado. A diferencia del patrón general —que concentra la actividad en las horas centrales del día—, el acceso desde móvil es más frecuente en las franjas de tarde y noche. Esto sugiere que el móvil se utiliza de forma complementaria al acceso desde ordenador: durante las horas de mayor actividad predomina el uso desde dispositivos de sobremesa o portátiles, mientras que el móvil gana protagonismo fuera de ese horario, posiblemente para consultas rápidas durante los desplazamientos o antes de dormir.
-
-```{r movil-hora, fig.cap="Distribución horaria de los accesos del alumnado desde dispositivos móviles. El patrón es complementario al acceso general, con mayor presencia en franjas de tarde y noche."}
-if (nrow(alumnos_movil_hora) > 0) {
-  ggplot(alumnos_movil_hora, aes(x = Hora_num, y = n)) +
-    geom_col(fill = "#FC8D59") +
-    scale_x_continuous(breaks = 0:23) +
-    labs(x = "Hora del día", y = "Eventos desde móvil") +
-    theme_minimal()
-}
 ```
 
 
