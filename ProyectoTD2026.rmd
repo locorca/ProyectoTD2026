@@ -612,6 +612,9 @@ Finalmente, el profesorado también dedica parte de su tiempo a monitorizar la a
 
 El contraste entre los perfiles de uso de alumnos y profesores permite entender mejor cómo cada grupo interactúa con la plataforma y qué relación existe entre las decisiones docentes y el comportamiento del alumnado.
 
+## Velocidad de reacción ante nuevo material
+
+Una métrica de gran interés pedagógico es el tiempo que transcurre desde que el profesorado publica un nuevo módulo hasta que un alumno lo abre por primera vez. Este indicador, denominado latencia de apertura, refleja la receptividad del alumnado ante los nuevos contenidos. La Figura \@ref(fig:latencia) muestra la distribución de esta latencia para todos los módulos para los que se dispone de datos tanto de publicación como de primera apertura.
 
 
 
