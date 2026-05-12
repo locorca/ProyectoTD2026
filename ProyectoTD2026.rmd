@@ -624,6 +624,7 @@ if (nrow(latencia_apertura) > 0) {
     theme_minimal()
 }
 ```
+La distribución es marcadamente asimétrica: la mediana se sitúa en **`r round(mediana_latencia, 1)`** horas, pero la media es de **`r round(media_latencia, 1)`** horas, lo que indica la presencia de una cola de módulos que tardan mucho más en ser abiertos. Esta diferencia entre media y mediana es informativa: la mayoría de los módulos se abren con relativa rapidez, pero hay un subconjunto que pasa desapercibido durante días o incluso semanas. Estos casos merecen atención: pueden corresponder a materiales publicados con mucha antelación, a recursos complementarios poco señalizados por el profesorado o a contenidos que el alumnado no sabe que existen.
 
 
 
