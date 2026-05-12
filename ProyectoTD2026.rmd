@@ -460,6 +460,100 @@ ggplot(recursos_menos_usados,
 
 \newpage
 
+# Análisis Multivariante
+
+El análisis univariante ha permitido caracterizar el comportamiento de las variables individuales. El siguiente paso es explorar las relaciones entre ellas, ya que los patrones más interesantes suelen emerger al cruzar variables. Se abordan tres tipos de relaciones según la naturaleza de las variables involucradas: numérica-numérica, categórica-categórica y numérica-categórica.
+
+## Relaciones entre variables numéricas
+
+La Tabla \@ref(tab:pearson) recoge la matriz de correlación de Pearson entre las cinco variables numéricas que caracterizan el perfil de cada alumno. Este coeficiente mide el grado de asociación lineal entre pares de variables y toma valores entre -1 (relación lineal negativa perfecta) y 1 (relación lineal positiva perfecta), siendo 0 indicativo de ausencia de relación lineal.
+
+```{r pearson}
+kable(
+  round(matriz_cor, 3),
+  booktabs = TRUE,
+  caption  = "Matriz de correlación de Pearson entre las variables numéricas del perfil de alumno."
+) %>%
+  kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
+```
+
+La correlación más destacada es la que existe entre el número de clics totales y el número de días activos. Una correlación positiva entre estas dos variables indica que los alumnos que aparecen más días en el log tienden a acumular también más interacciones, lo que es intuitivamente razonable: la presencia continuada en la plataforma favorece la acumulación de eventos. Sin embargo, la correlación no es perfecta, lo que indica que hay alumnos muy activos que concentran muchos clics en pocos días (el perfil de atracón identificado anteriormente) y otros que aparecen muchos días pero con una actividad diaria muy moderada. El resto de correlaciones de la tabla son débiles, lo que sugiere que la hora media de conexión, el porcentaje de uso del móvil y el número de IPs distintas son, en gran medida, independientes del volumen de actividad total.
+
+La Figura \@ref(fig:scatter-clics-dias) representa visualmente la relación entre días activos y clics. La nube de puntos muestra una tendencia positiva clara, confirmada por la recta de regresión, aunque la dispersión es considerable. Esta dispersión es, precisamente, la que hace interesante el análisis: hay alumnos que con pocos días activos acumulan muchos clics (indicativo del patrón de atracón) y otros con muchos días activos pero pocos clics diarios (indicativo de un uso pasivo y constante). Ambos extremos representan estrategias de uso de la plataforma muy distintas.
+
+```{r scatter-clics-dias, fig.cap="Relación entre el número de días en que cada alumno estuvo activo y su total de clics durante el curso. La recta negra muestra la tendencia lineal."}
+ggplot(perfil_alumnos, aes(x = dias_activos, y = clics)) +
+  geom_point(alpha = 0.5, color = "#D95F0E", size = 1.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
+  labs(x = "Días activos en el curso", y = "Clics totales") +
+  theme_minimal()
+```
+
+## Relaciones entre variables categóricas
+
+Para analizar la posible asociación entre el rol del usuario (alumno o profesor) y el día de la semana en que se concentra su actividad, se aplicó el test chi-cuadrado de independencia. Este test evalúa si la distribución de eventos por día de la semana difiere significativamente entre los dos grupos. Los resultados se recogen en la Tabla \@ref(tab:chi2).
+
+```{r chi2}
+tabla_chi <- logs %>%
+  mutate(Rol = ifelse(Nombre.completo.del.usuario %in% profesores_ids,
+                      "Profesor", "Alumno")) %>%
+  count(Rol, Dia_semana) %>%
+  pivot_wider(names_from = Dia_semana, values_from = n, values_fill = 0) %>%
+  column_to_rownames("Rol") %>%
+  as.matrix()
+
+chi_res <- suppressWarnings(chisq.test(tabla_chi))
+
+kable(
+  tibble(
+    `Estadístico chi²`   = round(unname(chi_res$statistic), 2),
+    `Grados de libertad` = unname(chi_res$parameter),
+    `p-valor`            = chi_res$p.value
+  ),
+  booktabs = TRUE,
+  caption  = "Test chi-cuadrado de independencia entre el rol del usuario y el día de la semana de actividad."
+) %>%
+  kable_styling(latex_options = c("hold_position"))
+```
+
+El p-valor obtenido permite rechazar la hipótesis nula de independencia: el día de la semana y el rol del usuario no son variables independientes. Dicho de otra manera, alumnos y profesores no siguen el mismo patrón de actividad semanal. La Figura \@ref(fig:barras-rol-dia), que representa la distribución relativa de eventos por día y rol, permite apreciar estas diferencias visualmente: los profesores tienden a concentrar su actividad en los primeros días de la semana, mientras que los alumnos presentan una distribución algo más uniforme a lo largo de los días lectivos, con un descenso más pronunciado hacia el fin de semana.
+
+```{r barras-rol-dia, fig.cap="Distribución relativa de la actividad por día de la semana en función del rol del usuario. Se observan diferencias apreciables entre alumnos y profesores."}
+logs %>%
+  mutate(Rol = ifelse(Nombre.completo.del.usuario %in% profesores_ids,
+                      "Profesor", "Alumno")) %>%
+  count(Rol, Dia_semana) %>%
+  ggplot(aes(x = Dia_semana, y = n, fill = Rol)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Día de la semana", y = "Proporción de eventos", fill = "Rol") +
+  theme_minimal()
+```
+
+## Relaciones entre variables numéricas y categóricas
+
+La combinación de variables numéricas y categóricas permite explorar cómo varía la intensidad de uso según el contexto temporal o el tipo de acceso. La Figura \@ref(fig:box-clics-dia) muestra la distribución de los clics diarios de los alumnos desglosada por día de la semana mediante diagramas de caja. Los días lectivos presentan medianas más altas y mayor variabilidad, mientras que el fin de semana muestra medianas más bajas, aunque con algunos valores atípicos que corresponden a alumnos especialmente activos en esas jornadas. Esta heterogeneidad es coherente con los resultados del análisis univariante: el alumnado no es homogéneo en sus hábitos de estudio.
+
+```{r box-clics-dia, fig.cap="Distribución de los clics diarios del alumnado según el día de la semana. Los días lectivos muestran medianas más altas y mayor variabilidad."}
+logs_alumnos %>%
+  count(Solo_Fecha, Dia_semana, name = "clics_dia") %>%
+  ggplot(aes(x = Dia_semana, y = clics_dia)) +
+  geom_boxplot(fill = "#FDBB84") +
+  labs(x = "Día de la semana", y = "Clics diarios") +
+  theme_minimal()
+```
+
+El uso del dispositivo móvil presenta también un patrón temporal diferenciado. La Figura \@ref(fig:movil-hora) muestra la distribución horaria de los accesos desde móvil por parte del alumnado. A diferencia del patrón general —que concentra la actividad en las horas centrales del día—, el acceso desde móvil es más frecuente en las franjas de tarde y noche. Esto sugiere que el móvil se utiliza de forma complementaria al acceso desde ordenador: durante las horas de mayor actividad predomina el uso desde dispositivos de sobremesa o portátiles, mientras que el móvil gana protagonismo fuera de ese horario, posiblemente para consultas rápidas durante los desplazamientos o antes de dormir.
+
+```{r movil-hora, fig.cap="Distribución horaria de los accesos del alumnado desde dispositivos móviles. El patrón es complementario al acceso general, con mayor presencia en franjas de tarde y noche."}
+if (nrow(alumnos_movil_hora) > 0) {
+  ggplot(alumnos_movil_hora, aes(x = Hora_num, y = n)) +
+    geom_col(fill = "#FC8D59") +
+    scale_x_continuous(breaks = 0:23) +
+    labs(x = "Hora del día", y = "Eventos desde móvil") +
+    theme_minimal()
+}
+```
 
 
 
