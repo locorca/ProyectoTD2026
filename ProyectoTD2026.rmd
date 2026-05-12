@@ -606,6 +606,11 @@ if (nrow(material_prof) > 0) {
 
 Finalmente, el profesorado también dedica parte de su tiempo a monitorizar la actividad del alumnado: **`r vigilancia_prof$clics_vigilancia`** clics (**`r vigilancia_prof$pct_vigilancia`%** de su actividad total) corresponden a eventos de consulta de informes de actividad, listas de usuarios o registros de notas. Aunque es una proporción pequeña, refleja un seguimiento activo del progreso del grupo, lo que es una práctica pedagógica recomendable para detectar alumnos con dificultades o con una participación insuficiente.
 
+\newpage
+
+# Comparativa entre alumnos y profesores
+
+El contraste entre los perfiles de uso de alumnos y profesores permite entender mejor cómo cada grupo interactúa con la plataforma y qué relación existe entre las decisiones docentes y el comportamiento del alumnado.
 
 
 
