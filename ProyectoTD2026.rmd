@@ -616,6 +616,14 @@ El contraste entre los perfiles de uso de alumnos y profesores permite entender 
 
 Una métrica de gran interés pedagógico es el tiempo que transcurre desde que el profesorado publica un nuevo módulo hasta que un alumno lo abre por primera vez. Este indicador, denominado latencia de apertura, refleja la receptividad del alumnado ante los nuevos contenidos. La Figura \@ref(fig:latencia) muestra la distribución de esta latencia para todos los módulos para los que se dispone de datos tanto de publicación como de primera apertura.
 
+```{r latencia, fig.cap="Distribución de la latencia de apertura del material nuevo, medida en horas desde la publicación hasta la primera apertura por parte de un alumno."}
+if (nrow(latencia_apertura) > 0) {
+  ggplot(latencia_apertura, aes(x = horas_apertura)) +
+    geom_histogram(bins = 30, fill = "#6BAED6", color = "white") +
+    labs(x = "Horas desde publicación hasta primera apertura", y = "Número de módulos") +
+    theme_minimal()
+}
+```
 
 
 
