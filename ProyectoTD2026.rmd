@@ -630,6 +630,14 @@ La distribución es marcadamente asimétrica: la mediana se sitúa en **`r round
 
 El análisis de los componentes del Aula Virtual revela una separación funcional clara entre los dos perfiles de usuario. Se han identificado **`r length(herramientas_excl_prof)`** componentes que los profesores utilizan pero que no generan ningún evento en los registros del alumnado. La Tabla \@ref(tab:herramientas-excl) los enumera.
 
+```{r herramientas-excl}
+kable(
+  tibble(Componente = herramientas_excl_prof),
+  booktabs = TRUE,
+  caption  = "Componentes del Aula Virtual utilizados por el profesorado y no por el alumnado."
+) %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
 
 
 
