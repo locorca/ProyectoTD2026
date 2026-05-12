@@ -641,6 +641,10 @@ kable(
 
 Estos componentes corresponden principalmente a herramientas de administración, configuración y seguimiento del curso: gestión de grupos, configuración de permisos, administración del sistema de calificaciones, etc. Su ausencia en los logs del alumnado no es una anomalía sino una característica estructural del diseño de Moodle: estas herramientas solo son accesibles para roles con permisos de edición. Este resultado confirma que la clasificación operativa de roles adoptada en la sección de preparación de datos es coherente y que los dos grupos realmente hacen un uso funcionalmente diferente de la plataforma.
 
+## Coincidencia en los patrones semanales
+
+Una última dimensión de interés es el grado en que alumnos y profesores comparten los mismos patrones de actividad semanal. La Figura \@ref(fig:solape-dias) compara la distribución relativa de eventos por día de la semana para cada grupo. Visualmente, ambas distribuciones siguen una forma similar: mayor actividad de lunes a jueves y caída pronunciada el fin de semana. Sin embargo, hay diferencias apreciables en los días de máxima actividad: los alumnos alcanzan su pico el **`r dia_top_alumnos`**, mientras que los profesores lo hacen el **`r dia_top_profes`**. El índice de solape entre ambas distribuciones es del **`r round(indice_solape, 1)`%**, lo que indica una coincidencia considerable pero no total.
+
 
 
 
