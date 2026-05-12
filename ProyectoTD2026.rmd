@@ -626,6 +626,9 @@ if (nrow(latencia_apertura) > 0) {
 ```
 La distribución es marcadamente asimétrica: la mediana se sitúa en **`r round(mediana_latencia, 1)`** horas, pero la media es de **`r round(media_latencia, 1)`** horas, lo que indica la presencia de una cola de módulos que tardan mucho más en ser abiertos. Esta diferencia entre media y mediana es informativa: la mayoría de los módulos se abren con relativa rapidez, pero hay un subconjunto que pasa desapercibido durante días o incluso semanas. Estos casos merecen atención: pueden corresponder a materiales publicados con mucha antelación, a recursos complementarios poco señalizados por el profesorado o a contenidos que el alumnado no sabe que existen.
 
+## Herramientas de uso exclusivo del profesorado
+
+El análisis de los componentes del Aula Virtual revela una separación funcional clara entre los dos perfiles de usuario. Se han identificado **`r length(herramientas_excl_prof)`** componentes que los profesores utilizan pero que no generan ningún evento en los registros del alumnado. La Tabla \@ref(tab:herramientas-excl) los enumera.
 
 
 
