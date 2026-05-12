@@ -325,7 +325,140 @@ matriz_cor <- cor(vars_num, use = "pairwise.complete.obs", method = "pearson")
 
 \newpage
 
+# Análisis Univariante
 
+Una vez garantizada la estructura correcta del *data frame*, la adecuación de los tipos de datos y la integridad del dataset, se procede al análisis individual de las variables más relevantes para el estudio. El análisis univariante permite caracterizar el comportamiento de cada variable de forma aislada antes de explorar las relaciones entre ellas.
+
+## Variables numéricas
+
+La Tabla \@ref(tab:stats-numericas) recoge los principales estadísticos descriptivos de las variables numéricas de interés: el número de clics acumulados por alumno a lo largo del curso, el número de IPs distintas desde las que cada alumno se conecta y la latencia de apertura del material nuevo, medida en horas desde su publicación hasta el primer acceso de un alumno.
+
+```{r stats-numericas}
+resumen_num <- tibble(
+  Variable       = c("Clics por alumno", "IPs distintas", "Latencia apertura (h)"),
+  Media          = c(mean(clics_por_alumno$clics),
+                     mean(ips_por_alumno$ips_distintas),
+                     mean(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  Mediana        = c(median(clics_por_alumno$clics),
+                     median(ips_por_alumno$ips_distintas),
+                     median(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  `Desv. típica` = c(sd(clics_por_alumno$clics),
+                     sd(ips_por_alumno$ips_distintas),
+                     sd(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  Mínimo         = c(min(clics_por_alumno$clics),
+                     min(ips_por_alumno$ips_distintas),
+                     min(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  Máximo         = c(max(clics_por_alumno$clics),
+                     max(ips_por_alumno$ips_distintas),
+                     max(latencia_apertura$horas_apertura, na.rm = TRUE))
+)
+
+kable(resumen_num, booktabs = TRUE, digits = 2,
+      caption = "Estadísticos descriptivos de las principales variables numéricas del perfil de alumno.") %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+El número de clics por alumno es quizás la variable más informativa de las tres. La diferencia entre el valor mínimo y el máximo es de **`r max(clics_por_alumno$clics) - min(clics_por_alumno$clics)`** clics, un rango muy amplio. La Figura \@ref(fig:hist-clics) muestra que la distribución es claramente asimétrica hacia la derecha: la mayor parte de los alumnos se sitúa en la zona de actividad moderada, mientras que una pequeña fracción acumula un número de interacciones muy por encima de la media.
+
+```{r hist-clics, fig.cap="Distribución del número de clics totales por alumno a lo largo del curso. La cola derecha evidencia la presencia de usuarios con una actividad muy superior a la media."}
+ggplot(clics_por_alumno, aes(x = clics)) +
+  geom_histogram(bins = 30, fill = "#2C7FB8", color = "white") +
+  labs(x = "Clics totales", y = "Número de alumnos") +
+  theme_minimal()
+```
+
+El diagrama de caja de la Figura \@ref(fig:box-clics) permite identificar con precisión los valores atípicos. Varios alumnos quedan por encima del bigote superior, confirmando lo que el histograma ya insinuaba. Estos valores atípicos no se consideran errores de medida sino casos extremos.
+
+```{r box-clics, fig.cap="Diagrama de caja del número de clics por alumno. Los puntos por encima del bigote superior son valores atípicos confirmados."}
+ggplot(clics_por_alumno, aes(y = clics)) +
+  geom_boxplot(fill = "#7FCDBB", width = 0.4) +
+  labs(y = "Clics totales") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+En cuanto a la movilidad de las conexiones, la mediana de IPs distintas por alumno se sitúa en **`r median(ips_por_alumno$ips_distintas)`**, lo que indica que la mayoría de los estudiantes accede desde un número reducido de ubicaciones de red, probablemente el domicilio y la universidad. Los valores más altos de este indicador pueden corresponder a alumnos que estudian desde lugares muy diversos (bibliotecas, cafeterías, domicilios de familiares) o que utilizan redes de datos móviles, que asignan IPs dinámicas con frecuencia.
+
+## Variables categóricas
+
+Para las variables categóricas el análisis univariante se centra en la distribución de frecuencias. Una primera aproximación al uso de la plataforma la ofrece la Tabla \@ref(tab:freq-componentes), que recoge los diez componentes del Aula Virtual con mayor número de eventos totales. Esta tabla permite identificar qué módulos concentran la mayor actividad y cuáles quedan en un segundo plano.
+
+```{r freq-componentes}
+kable(
+  head(uso_comp_total, 10),
+  booktabs  = TRUE,
+  col.names = c("Componente", "N.º de eventos"),
+  caption   = "Los diez componentes del Aula Virtual con mayor número de eventos registrados (todos los usuarios)."
+) %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+Desde el punto de vista temporal, la Figura \@ref(fig:bar-dia) muestra cómo se distribuye la actividad del alumnado a lo largo de los días de la semana. El **`r alumnos_dia$Dia_semana[1]`** acumula el mayor número de eventos y la actividad cae de forma progresiva hacia el fin de semana, aunque la actividad no llega a ser nula, lo que indica que una parte del alumnado sí trabaja en el Aula Virtual durante el fin de semana, especialmente en períodos de entrega.
+
+```{r bar-dia, fig.cap="Frecuencia de eventos del alumnado por día de la semana a lo largo del curso completo."}
+ggplot(alumnos_dia, aes(x = Dia_semana, y = n)) +
+  geom_col(fill = "#41AE76") +
+  labs(x = "Día de la semana", y = "Número de eventos") +
+  theme_minimal()
+```
+
+La distribución horaria (Figura \@ref(fig:bar-hora)) completa el cuadro de los patrones temporales de los alumnos. Se observa un pico pronunciado a las **`r alumnos_hora$Hora_num[1]`:00**, hora que concentra el mayor número de interacciones. A partir de ahí la actividad desciende de forma gradual hacia la noche, aunque no desaparece completamente: los accesos en horario nocturno (después de las 22:00) son minoritarios pero no despreciables, lo que refleja que una parte del alumnado trabaja con la plataforma fuera del horario convencional, ya sea por preferencia personal o por compatibilidad con otras obligaciones.
+
+```{r bar-hora, fig.cap="Distribución horaria de la actividad del alumnado. El pico principal se sitúa en las horas centrales del día."}
+ggplot(alumnos_hora, aes(x = Hora_num, y = n)) +
+  geom_col(fill = "#2C7FB8") +
+  scale_x_continuous(breaks = 0:23) +
+  labs(x = "Hora del día", y = "Número de eventos") +
+  theme_minimal()
+```
+
+Un dato que merece atención especial es la naturaleza de las interacciones: el **`r round(pct_pasivo_alumnos, 1)`%** de los eventos del alumnado corresponde a acciones de visualización pasiva, es decir, acceder a una página, ver un recurso o consultar un archivo sin generar ninguna respuesta o aportación. Este porcentaje tan elevado sugiere que el Aula Virtual se utiliza predominantemente como repositorio de consulta y no como espacio de participación activa. 
+
+## Análisis de la concentración temporal y uso de recursos
+
+Una de las cuestiones de mayor interés es si el alumnado distribuye su trabajo de forma regular a lo largo del semestre o si, por el contrario, concentra sus esfuerzos en períodos concretos próximos a las fechas de entrega. La Figura \@ref(fig:evol-semanal) muestra la evolución semanal de la actividad total del alumnado. La imagen que ofrece es la de una actividad irregular, con semanas de alta intensidad que contrastan con períodos de baja actividad. Los picos más pronunciados coinciden, presumiblemente, con las fechas de entrega de prácticas o con exámenes.
+
+```{r evol-semanal, fig.cap="Evolución semanal de la actividad total del alumnado. Los picos pronunciados coinciden previsiblemente con períodos de entrega o evaluación."}
+ggplot(alumnos_semana, aes(x = Semana, y = n)) +
+  geom_line(color = "#88419D", linewidth = 0.8) +
+  geom_point(color = "#88419D", size = 1.6) +
+  labs(x = "Semana ISO", y = "Número de eventos") +
+  theme_minimal()
+```
+
+Esta hipótesis se confirma al analizar específicamente los eventos de envío de tareas (Figura \@ref(fig:entregas)). Los envíos se concentran en muy pocas fechas, con picos muy marcados que rompen completamente la tendencia general. 
+
+```{r entregas, fig.cap="Evolución temporal de los eventos de entrega de tareas. Los picos corresponden a las fechas límite de entrega de las prácticas de la asignatura."}
+if (nrow(entregas_por_fecha) > 0) {
+  ggplot(entregas_por_fecha, aes(x = Solo_Fecha, y = n)) +
+    geom_line(color = "#E34A33", linewidth = 0.8) +
+    labs(x = "Fecha", y = "Eventos de entrega") +
+    theme_minimal()
+}
+```
+
+Para cuantificar el grado de concentración de la actividad a nivel individual se calculó, para cada alumno, el ratio de concentración semanal: el cociente entre el número de eventos registrados en su semana más activa y el total de eventos acumulados a lo largo de todo el curso. Un ratio elevado indica que la actividad del alumno está muy concentrada en un período corto de tiempo. Fijando en 0,35 el umbral a partir del cual se considera que un alumno presenta este patrón, la Figura \@ref(fig:hist-atracon) muestra que el **`r round(prop_atracon, 1)`%** del alumnado supera dicho umbral. En consecuencia, **`r diagnostico_atracon`** en este grupo de estudio. Este resultado tiene implicaciones prácticas evidentes: una mayoría de alumnos no mantiene un ritmo de trabajo sostenido a lo largo del cuatrimestre.
+
+```{r hist-atracon, fig.cap="Distribución del ratio de concentración semanal por alumno. La línea roja discontinua marca el umbral de 0,35; los valores a su derecha corresponden a alumnos con patrón de atracón."}
+ggplot(atracones_alumnos, aes(x = ratio_concentracion)) +
+  geom_histogram(bins = 25, fill = "#FDAE6B", color = "white") +
+  geom_vline(xintercept = 0.35, linetype = "dashed", color = "red") +
+  labs(x = "Ratio de concentración semanal", y = "Número de alumnos") +
+  theme_minimal()
+```
+
+Por otro lado, no todos los componentes del Aula Virtual reciben la misma atención. La Figura \@ref(fig:recursos-poco-usados) recoge los diez módulos con menor número de eventos generados por el alumnado. Algunos de ellos registran apenas un puñado de interacciones durante todo el curso, lo que puede deberse a que el alumnado desconoce su existencia, a que no los considera relevantes para la asignatura o simplemente a que el profesorado no los ha integrado de forma explícita en la dinámica del curso.
+
+```{r recursos-poco-usados, fig.cap="Los diez componentes del Aula Virtual con menor número de eventos generados por el alumnado."}
+ggplot(recursos_menos_usados,
+       aes(x = reorder(Componente, n_alumnos), y = n_alumnos)) +
+  geom_col(fill = "#B3DE69") +
+  coord_flip() +
+  labs(x = "Componente", y = "Número de eventos") +
+  theme_minimal()
+```
+
+\newpage
 
 
 
