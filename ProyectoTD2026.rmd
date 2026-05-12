@@ -1,84 +1,128 @@
 ---
-title: "Logs de la asignatura en Aula Virtual"
-subtitle: "Análisis de datos"
-author: "Grupo P - Joyce, Marcos, Sergio, Andrés y Lorena"
+title: "Logs de la Asignatura en Aula Virtual"
+subtitle: "Asignatura Tratamiento de Datos, Curso 2025-2026"
+author: "Joyce, Lorena, Sergio, Andrés y Marcos (Grupo P)"
 lang: es
-output: 
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output:
   bookdown::pdf_document2:
     number_sections: true
+    toc: false
 header-includes:
   - \renewcommand{\spanishtablename}{Tabla}
+  - \usepackage{booktabs}
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \floatplacement{table}{H}
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(lubridate)
 library(knitr)
+library(kableExtra)
 options(OutDec = ",", digits = 3)
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(
+  echo      = FALSE,
+  warning   = FALSE,
+  message   = FALSE,
+  fig.align = "center",
+  out.width = "85%"
+)
 ```
 
+---
+En este proyecto de Análisis Exploratorio de Datos se estudian los registros de actividad del Aula Virtual (Moodle) de la asignatura Tratamiento de Datos durante el curso 2025-2026, con el objetivo de identificar patrones de comportamiento significativos en el alumnado y el profesorado. Tras una fase de preprocesado que incluye la conversión de marcas temporales, la generación de variables derivadas y la eliminación de duplicados, se llevan a cabo análisis univariante y multivariante, así como una comparativa entre perfiles de usuario. Los resultados revelan una tendencia al estudio en "atracón" en una fracción relevante del alumnado, una marcada asimetría en la carga de trabajo docente y diferencias funcionales claras entre el uso que hacen de la plataforma alumnos y profesores.
+
+**Abstract:** Learning Management Systems such as Moodle generate large volumes of interaction logs that, once analysed, can reveal meaningful behavioural patterns. This project applies Exploratory Data Analysis techniques to anonymised activity records from a university Virtual Classroom covering the 2025-2026 academic year. After preprocessing — including datetime parsing, feature engineering and duplicate removal — univariate and multivariate analyses were conducted. Key findings include a tendency toward study "binge" patterns in a significant fraction of students, a clear asymmetry in teaching workload, and functionally distinct platform usage between student and teaching-staff profiles.
+
+**Keywords:** Análisis Exploratorio de Datos; Logs de Moodle; Patrones de comportamiento; Aula Virtual; Ciencia de Datos.
+
+---
+
 \newpage
-
-El presente informe detalla el Análisis Exploratorio de Datos (EDA) realizado sobre los registros de actividad del Aula Virtual durante el curso 2025-2026. A través de técnicas de preprocesamiento, análisis univariante y multivariante, se identifican patrones críticos de comportamiento en estudiantes y docentes. El estudio revela una tendencia al "atracón" de estudio en fechas próximas a exámenes y una brecha significativa en el uso de herramientas móviles entre perfiles.
-
-Keywords: EDA, Logs, Moodle, Patrones de comportamiento, Ciencia de Datos.
 
 # Introducción
 
 ## Contexto del estudio
 
-El Aula Virtual centraliza materiales, tareas, cuestionarios y comunicación docente-estudiante. Analizar sus registros permite entender **hábitos de uso**, **momentos de mayor carga** y diferencias entre perfiles de usuarios.
+Las plataformas de gestión del aprendizaje como Moodle registran automáticamente cada interacción de sus usuarios: accesos a contenidos, envíos de tareas, consultas de foros, creación de materiales por parte del profesorado... Este rastro digital, denominado *log de actividad*, constituye una fuente de información extraordinaria para comprender cómo se relacionan alumnos y docentes con el entorno virtual de una asignatura, con qué intensidad lo hacen y en qué momentos se concentra ese uso.
 
-El dataset utilizado contiene logs anonimizados con variables de fecha-hora, usuario, componente del sistema, evento, origen e IP. A través de este proyecto se ponen en práctica los conceptos de la asignatura para comprender patrones de comportamiento de estudiantes y profesorado.
+El presente informe analiza los registros de actividad del Aula Virtual de la asignatura Tratamiento de Datos durante el curso 2025-2026. El dataset contiene eventos anonimizados que recogen, para cada interacción, la marca temporal, el usuario que la genera, el componente del sistema implicado, el tipo de evento, el canal de acceso y la dirección IP desde la que se produce.
 
-## Preguntas iniciales
+## Preguntas de investigación
 
-1. ¿A qué hora se conectan más los alumnos?  
-2. ¿Qué día de la semana hay más actividad?  
-3. ¿En qué semanas hay picos de estrés (exámenes)?  
-4. ¿En qué fechas se entregan más tareas?  
-5. ¿Qué recursos del Aula Virtual se ignoran más? 
-6. ¿Cuánta diferencia de clics hay entre el más y menos activo? 
-7. ¿Cuánto tardan los alumnos en abrir el material nuevo?
-8. ¿Qué porcentaje de clics es solo "mirar" pasivamente?  
-9. Porcentaje de alumnos que cumplen entregas.
-10. ¿Desde cuántas redes (IPs) distintas se conectan?  
-11. ¿Trabajan en noches o fines de semana?  
-12. ¿Qué profesor pasa más tiempo en el Aula Virtual?  
-13. ¿Suben más teoría (recursos) o práctica (tareas)?  
-14. ¿Crean material todo el curso o solo al inicio?  
- 
+El punto de partida del análisis fue un proceso de *brainstorming* en el que el equipo planteó las preguntas que consideró más relevantes sobre el uso del Aula Virtual. Estas preguntas se agruparon en tres bloques según el perfil de usuario al que se refieren.
+
+Sobre el **alumnado** se plantearon cuestiones relacionadas con los patrones temporales de conexión (horas y días de mayor actividad, semanas de mayor carga), con la regularidad o irregularidad del estudio a lo largo del semestre, con la intensidad y el tipo de uso (diferencias entre usuarios, proporción de actividad pasiva frente a activa, recursos que se ignoran) y con aspectos de conectividad como el número de redes distintas desde las que se accede o el uso del dispositivo móvil.
+
+Sobre el **profesorado** las preguntas se centraron en la distribución de la carga de trabajo entre los docentes, su patrón de actividad a lo largo del tiempo (regularidad frente a picos puntuales, presencia fuera del horario lectivo), el tipo de contenido que generan y la atención que dedican al seguimiento del alumnado.
+
+Finalmente, el bloque **comparativo** aborda aspectos que solo cobran sentido al contrastar los dos perfiles: la velocidad con que el alumnado reacciona ante la publicación de nuevo material, las herramientas que usa el profesorado pero el alumnado ignora, el grado de coincidencia en los patrones semanales y las diferencias en el uso del móvil.
+
+\newpage
+
 # Importación y preparación de los datos
 
-La fase de preparación es crítica en cualquier flujo de Ciencia de Datos. El objetivo es transformar un registro de actividad bruto (Raw Logs) en un conjunto de datos estructurado y enriquecido que permita extraer conocimiento significativo.
+## Carga del dataset y enriquecimiento de variables
 
-## Carga de datos
+El dataset original se encuentra en formato CSV y contiene un registro por cada evento registrado por Moodle. La primera tarea tras la carga es convertir la variable `Hora`, que Moodle exporta como texto, a un tipo *datetime* propiamente dicho mediante la función `dmy_hms` de la librería `lubridate`. Esta conversión es imprescindible para cualquier análisis temporal posterior.
 
-El dataset original se compone de registros de texto. Para poder realizar análisis temporales, se ha procedido a la conversión de la variable  al formato datetime utilizando la librería . Además, se han derivado nuevas variables ( feature engineering ) para capturar la estacionalidad y el tipo de dispositivo de acceso.
+A partir de la marca temporal se derivan varias variables adicionales que facilitan el análisis: la hora del día en formato numérico (0–23), el día de la semana como factor ordenado, el número de semana ISO del año, y dos indicadores binarios que señalan si el evento ocurre en horario nocturno (entre las 22:00 y las 06:00) o en fin de semana (sábado o domingo). Por último, se genera un indicador de acceso desde dispositivo móvil inspeccionando el campo `Origen` en busca de cadenas asociadas a aplicaciones o navegadores móviles. Este conjunto de variables derivadas permitirá responder a las preguntas de investigación planteadas sin necesidad de recalcular estas condiciones en cada análisis.
 
-Dado que el dataset no incluye una etiqueta explícita de "rol", se ha implementado un algoritmo de clasificación operativa. Este se basa en la detección de eventos administrativos exclusivos (como la creación de secciones o módulos). Aquellos usuarios que han realizado estas acciones son etiquetados como Profesores, mientras que el resto se clasifica como Alumnos.
-
-```{r resumen-estructura, echo=FALSE}
+```{r carga-y-preparacion}
 
 logs_raw <- read.csv("data/logs_moodle_anon.csv", sep = ",", stringsAsFactors = FALSE)
 
 logs <- logs_raw %>%
   mutate(
     Fecha_Completa = dmy_hms(Hora),
-    Solo_Fecha = as.Date(Fecha_Completa),
-    Hora_num = hour(Fecha_Completa),
+    Solo_Fecha     = as.Date(Fecha_Completa),
+    Hora_num       = hour(Fecha_Completa),
     Dia_semana_num = wday(Fecha_Completa, week_start = 1),
-    Dia_semana = factor(
-      c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")[Dia_semana_num],
-      levels = c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+    Dia_semana     = factor(
+      c("Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo")[Dia_semana_num],
+      levels = c("Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo")
     ),
-    Semana = isoweek(Fecha_Completa),
-    Es_fin_semana = Dia_semana %in% c("Sábado", "Domingo"),
-    Es_noche = Hora_num >= 22 | Hora_num < 6,
-    Es_movil = str_detect(str_to_lower(Origen), "mobile|móvil|movil|app")
+    Semana        = isoweek(Fecha_Completa),
+    Es_fin_semana = Dia_semana %in% c("Sábado","Domingo"),
+    Es_noche      = Hora_num >= 22 | Hora_num < 6,
+    Es_movil      = str_detect(str_to_lower(Origen), "mobile|móvil|movil|app")
   )
+```
 
+## Limpieza y validación de la integridad del dataset
+
+Antes de extraer cualquier conclusión es imprescindible garantizar la calidad de los datos. Se realizaron dos comprobaciones básicas: la detección de registros duplicados exactos y la identificación de valores faltantes. En cuanto a los duplicados, fueron eliminados para evitar que inflen las frecuencias de uso. Aunque su número es pequeño en términos relativos, su presencia no es trivial.
+
+La Tabla \@ref(tab:limpieza) detalla las variables que presentan valores faltantes tras la carga. Como puede observarse, los NA se concentran en la variable derivada `Es_movil`, lo que se debe a que algunos registros no tienen informado el campo `Origen` en el CSV original. Esta ausencia no afecta al análisis temporal ni a la identificación de usuarios, por lo que no requiere imputación; simplemente implica que esos eventos quedarán excluidos de los cálculos relativos al uso del móvil. El resto de variables relevantes para el estudio están completamente informadas.
+
+```{r limpieza}
+n_duplicados <- sum(duplicated(logs_raw))
+logs         <- logs %>% distinct()
+
+faltantes <- tibble(
+  Variable = names(logs),
+  N_NA     = colSums(is.na(logs)),
+  Pct_NA   = round(100 * N_NA / nrow(logs), 2)
+) %>%
+  filter(N_NA > 0) %>%
+  arrange(desc(N_NA))
+
+kable(
+  faltantes,
+  booktabs  = TRUE,
+  col.names = c("Variable", "N.º valores NA", "% sobre total"),
+  caption   = "Variables con valores faltantes tras la carga del dataset."
+) %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+## Segmentación por rol de usuario
+
+El dataset no incluye una columna que identifique explícitamente el rol de cada usuario. Para distinguir entre alumnos y profesores se implementó un algoritmo de clasificación operativa basado en el tipo de acciones realizadas. La premisa es sencilla: crear una sección del curso, crear un módulo o actualizarlo son acciones que en Moodle solo puede realizar el profesorado. Por tanto, cualquier usuario que haya generado al menos uno de estos eventos queda etiquetado como *profesor*; el resto se clasifica como *alumno*.
+
+```{r segmentacion}
 eventos_profesor_estricto <- c(
   "Sección del curso creada",
   "Módulo de curso creado",
@@ -96,26 +140,206 @@ alumnos_ids <- logs %>%
   pull()
 
 logs_profesores <- logs %>% filter(Nombre.completo.del.usuario %in% profesores_ids)
-logs_alumnos <- logs %>% filter(Nombre.completo.del.usuario %in% alumnos_ids)
+logs_alumnos    <- logs %>% filter(Nombre.completo.del.usuario %in% alumnos_ids)
 
 resumen_estructura <- tibble(
-  dataset = c("Total", "Profesores", "Alumnos"),
-  registros = c(nrow(logs), nrow(logs_profesores), nrow(logs_alumnos)),
-  usuarios = c(
+  Grupo     = c("Total", "Profesores", "Alumnos"),
+  Registros = c(nrow(logs), nrow(logs_profesores), nrow(logs_alumnos)),
+  Usuarios  = c(
     n_distinct(logs$Nombre.completo.del.usuario),
     n_distinct(logs_profesores$Nombre.completo.del.usuario),
     n_distinct(logs_alumnos$Nombre.completo.del.usuario)
   )
 )
 
-knitr::kable(resumen_estructura, 
-             booktabs = TRUE, 
-             caption = "Resumen de la estructura y segmentación del dataset según el rol operativo") %>%
-  kableExtra::kable_styling(latex_options = c("striped", "hold_position"))
+kable(
+  resumen_estructura,
+  booktabs = TRUE,
+  caption  = "Estructura y segmentación del dataset según el rol operativo."
+) %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-Como muestra la Tabla \@ref(tab:resumen-estructura), hay una gran diferencia de actividad entre alumnos y profesores. Es normal que los alumnos generen casi todos los registros, ya que son quienes más interactúan con los materiales.
+La Tabla \@ref(tab:segmentacion) muestra el resultado de esta segmentación. La desproporción entre el volumen de registros de alumnos y el de profesores es esperable: los alumnos son más numerosos y consultan los materiales de forma continua, mientras que el profesorado interviene de forma más selectiva y puntual. 
 
-Esta diferencia es positiva para el estudio, porque nos permite analizar a cada grupo por separado. Además, al tener un número alto de usuarios, sabemos que los resultados que veremos después representan el comportamiento de todo el grupo y no solo de unas pocas personas.
+```{r calculos-base, include=FALSE}
+# ---- Alumnos ----
+alumnos_hora   <- logs_alumnos %>% count(Hora_num,   sort = TRUE)
+alumnos_dia    <- logs_alumnos %>% count(Dia_semana, sort = TRUE)
+alumnos_semana <- logs_alumnos %>% count(Semana,     sort = TRUE)
+
+eventos_entrega <- c(
+  "Se ha enviado una entrega","Entrega creada.","Intento enviado","Respuestas enviadas"
+)
+entregas_por_fecha <- logs_alumnos %>%
+  filter(Nombre.evento %in% eventos_entrega) %>%
+  count(Solo_Fecha, sort = TRUE)
+
+uso_comp_alumnos <- logs_alumnos    %>% count(Componente, name = "n_alumnos")
+uso_comp_profes  <- logs_profesores %>% count(Componente, name = "n_profes")
+uso_comp_total   <- logs            %>% count(Componente, name = "n_total")
+
+recursos_menos_usados <- uso_comp_alumnos %>% arrange(n_alumnos) %>% slice(1:10)
+recursos_ignorados    <- uso_comp_total %>%
+  left_join(uso_comp_alumnos, by = "Componente") %>%
+  mutate(n_alumnos = replace_na(n_alumnos, 0L)) %>%
+  filter(n_alumnos == 0) %>%
+  arrange(desc(n_total))
+
+alumnos_movil_hora <- logs_alumnos %>% filter(Es_movil) %>% count(Hora_num, sort = TRUE)
+clics_por_alumno   <- logs_alumnos %>% count(Nombre.completo.del.usuario, name = "clics")
+ips_por_alumno     <- logs_alumnos %>%
+  group_by(Nombre.completo.del.usuario) %>%
+  summarise(ips_distintas = n_distinct(Dirección.IP), .groups = "drop")
+
+patron_pasivo      <- "visto|visualizado|visitada|vista|ha visualizado"
+pct_pasivo_alumnos <- logs_alumnos %>%
+  summarise(pct = 100 * mean(str_detect(str_to_lower(Nombre.evento), patron_pasivo),
+                             na.rm = TRUE)) %>% pull(pct)
+
+alumno_semana     <- logs_alumnos %>%
+  count(Nombre.completo.del.usuario, Semana, name = "eventos_semana")
+atracones_alumnos <- alumno_semana %>%
+  group_by(Nombre.completo.del.usuario) %>%
+  summarise(
+    total_eventos       = sum(eventos_semana),
+    semana_max          = max(eventos_semana),
+    ratio_concentracion = semana_max / total_eventos,
+    cv_semanal          = ifelse(mean(eventos_semana) > 0,
+                                 sd(eventos_semana) / mean(eventos_semana), NA_real_),
+    .groups = "drop"
+  )
+prop_atracon        <- mean(atracones_alumnos$ratio_concentracion > 0.35, na.rm = TRUE) * 100
+diagnostico_atracon <- ifelse(prop_atracon >= 50,
+                              "predominan los atracones", "predomina la actividad constante")
+
+# ---- Profesores ----
+prof_noche_fin <- logs_profesores %>%
+  summarise(pct_noche      = 100 * mean(Es_noche,      na.rm = TRUE),
+            pct_fin_semana = 100 * mean(Es_fin_semana, na.rm = TRUE))
+
+ranking_profesores <- logs_profesores %>%
+  count(Nombre.completo.del.usuario, sort = TRUE, name = "clics") %>%
+  mutate(Porcentaje = round(100 * clics / sum(clics), 2))
+
+prof_por_dia    <- logs_profesores %>% count(Solo_Fecha, name = "clics_dia")
+cv_prof_dia     <- sd(prof_por_dia$clics_dia) / mean(prof_por_dia$clics_dia)
+cuantil_90_prof <- quantile(prof_por_dia$clics_dia, 0.9, na.rm = TRUE)
+pct_clics_dias_pico <- 100 *
+  sum(prof_por_dia$clics_dia[prof_por_dia$clics_dia >= cuantil_90_prof]) /
+  sum(prof_por_dia$clics_dia)
+diag_prof_picos <- ifelse(cv_prof_dia > 1,
+                          "picos puntuales", "trabajo relativamente diario")
+
+material_prof <- logs_profesores %>%
+  filter(str_detect(str_to_lower(Nombre.evento), "cread|actualiz")) %>%
+  mutate(tipo_material = case_when(
+    str_detect(str_to_lower(Contexto.del.evento),
+               "tarea|cuestionario|práctica|practica|quiz") ~ "Práctica",
+    str_detect(str_to_lower(Contexto.del.evento),
+               "carpeta|recurso|url|archivo|página|pagina|foro|tema") ~ "Teoría",
+    TRUE ~ "Otros"
+  ))
+
+teoria_practica_prof <- material_prof %>%
+  count(tipo_material, sort = TRUE) %>%
+  mutate(Porcentaje = round(100 * n / sum(n), 2))
+
+semana_inicio       <- if (nrow(material_prof) > 0)
+  min(material_prof$Semana, na.rm = TRUE) else NA
+pct_material_inicio <- if (nrow(material_prof) > 0)
+  material_prof %>% filter(Semana <= semana_inicio + 3) %>%
+  summarise(pct = 100 * n() / nrow(material_prof)) %>% pull(pct) else NA_real_
+
+diag_creacion <- case_when(
+  is.na(pct_material_inicio) ~ "no hay acciones suficientes para concluir",
+  pct_material_inicio >= 70  ~ "la mayor parte del material se crea al inicio del curso",
+  pct_material_inicio <= 40  ~ "la creación de material se reparte a lo largo del curso",
+  TRUE ~ "hay un patrón mixto: inicio fuerte con mantenimiento posterior"
+)
+
+eventos_vigilancia <- c(
+  "Informe de registro visualizado","Informe de actividad visto",
+  "Informe de sesión visto","Informe de notas de usuario visto","Lista de usuarios vista"
+)
+vigilancia_prof <- logs_profesores %>%
+  filter(Nombre.evento %in% eventos_vigilancia) %>%
+  summarise(clics_vigilancia = n(),
+            pct_vigilancia   = round(100 * n() / nrow(logs_profesores), 2))
+
+# ---- Comparativa ----
+material_nuevo <- logs_profesores %>%
+  filter(Nombre.evento == "Módulo de curso creado") %>%
+  mutate(module_id = str_extract(Descripción, "(?<=course module id ')\\d+(?=')")) %>%
+  filter(!is.na(module_id)) %>%
+  group_by(module_id) %>%
+  summarise(fecha_creacion = min(Fecha_Completa), .groups = "drop")
+
+primera_apertura <- logs_alumnos %>%
+  filter(Nombre.evento == "Módulo de curso visto") %>%
+  mutate(module_id = str_extract(Descripción, "(?<=course module id ')\\d+(?=')")) %>%
+  filter(!is.na(module_id)) %>%
+  group_by(module_id) %>%
+  summarise(fecha_primera_apertura = min(Fecha_Completa), .groups = "drop")
+
+latencia_apertura <- material_nuevo %>%
+  inner_join(primera_apertura, by = "module_id") %>%
+  mutate(horas_apertura = as.numeric(
+    difftime(fecha_primera_apertura, fecha_creacion, units = "hours"))) %>%
+  filter(horas_apertura >= 0)
+
+mediana_latencia <- if (nrow(latencia_apertura) > 0)
+  median(latencia_apertura$horas_apertura, na.rm = TRUE) else NA_real_
+media_latencia   <- if (nrow(latencia_apertura) > 0)
+  mean(latencia_apertura$horas_apertura, na.rm = TRUE) else NA_real_
+
+herramientas_excl_prof <- setdiff(unique(logs_profesores$Componente),
+                                   unique(logs_alumnos$Componente))
+
+dist_dias_alumnos <- logs_alumnos    %>% count(Dia_semana, name = "n_alumnos") %>%
+  mutate(p_alumnos = n_alumnos / sum(n_alumnos))
+dist_dias_profes  <- logs_profesores %>% count(Dia_semana, name = "n_profes")  %>%
+  mutate(p_profes  = n_profes  / sum(n_profes))
+comparativa_dias  <- full_join(dist_dias_alumnos, dist_dias_profes, by = "Dia_semana") %>%
+  mutate(across(where(is.integer), ~ replace_na(., 0L)),
+         across(where(is.double),  ~ replace_na(., 0)))
+indice_solape   <- 100 * sum(pmin(comparativa_dias$p_alumnos, comparativa_dias$p_profes))
+dia_top_alumnos <- alumnos_dia$Dia_semana[[1]]
+dia_top_profes  <- dist_dias_profes %>%
+  arrange(desc(n_profes)) %>% slice(1) %>% pull(Dia_semana)
+
+pct_movil_alumnos <- 100 * mean(logs_alumnos$Es_movil,    na.rm = TRUE)
+pct_movil_profes  <- 100 * mean(logs_profesores$Es_movil, na.rm = TRUE)
+grupo_mas_movil   <- ifelse(pct_movil_alumnos > pct_movil_profes, "Alumnos", "Profesores")
+
+perfil_alumnos <- logs_alumnos %>%
+  group_by(Nombre.completo.del.usuario) %>%
+  summarise(clics         = n(),
+            dias_activos  = n_distinct(Solo_Fecha),
+            ips_distintas = n_distinct(Dirección.IP),
+            pct_movil     = 100 * mean(Es_movil, na.rm = TRUE),
+            media_hora    = mean(Hora_num, na.rm = TRUE),
+            .groups = "drop")
+
+vars_num   <- perfil_alumnos %>%
+  select(clics, dias_activos, ips_distintas, pct_movil, media_hora)
+matriz_cor <- cor(vars_num, use = "pairwise.complete.obs", method = "pearson")
+```
+
+\newpage
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
