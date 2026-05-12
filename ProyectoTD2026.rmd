@@ -645,7 +645,18 @@ Estos componentes corresponden principalmente a herramientas de administración,
 
 Una última dimensión de interés es el grado en que alumnos y profesores comparten los mismos patrones de actividad semanal. La Figura \@ref(fig:solape-dias) compara la distribución relativa de eventos por día de la semana para cada grupo. Visualmente, ambas distribuciones siguen una forma similar: mayor actividad de lunes a jueves y caída pronunciada el fin de semana. Sin embargo, hay diferencias apreciables en los días de máxima actividad: los alumnos alcanzan su pico el **`r dia_top_alumnos`**, mientras que los profesores lo hacen el **`r dia_top_profes`**. El índice de solape entre ambas distribuciones es del **`r round(indice_solape, 1)`%**, lo que indica una coincidencia considerable pero no total.
 
-
+```{r solape-dias, fig.cap="Comparativa de la distribución de actividad por día de la semana entre alumnos y profesores. Ambos grupos comparten el patrón general pero difieren en el día de máxima actividad."}
+comparativa_dias %>%
+  mutate(pct_alumnos = 100 * p_alumnos, pct_profes = 100 * p_profes) %>%
+  select(Dia_semana, pct_alumnos, pct_profes) %>%
+  pivot_longer(c(pct_alumnos, pct_profes), names_to = "Grupo", values_to = "pct") %>%
+  mutate(Grupo = recode(Grupo, pct_alumnos = "Alumnos", pct_profes = "Profesores")) %>%
+  ggplot(aes(x = Dia_semana, y = pct, color = Grupo, group = Grupo)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  labs(x = "Día de la semana", y = "Porcentaje de eventos", color = "Grupo") +
+  theme_minimal()
+```
 
 
 
