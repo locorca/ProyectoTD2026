@@ -536,6 +536,76 @@ logs_alumnos %>%
   theme_minimal()
 ```
 
+\newpage
+
+# Perfil de uso del profesorado
+
+## Distribución de la carga de trabajo entre docentes
+
+El análisis del profesorado parte de una constatación llamativa: la actividad no se distribuye de forma homogénea entre los docentes de la asignatura. La Tabla \@ref(tab:ranking-prof) y la Figura \@ref(fig:fig-ranking-prof) muestran el reparto de clics entre los diferentes profesores. Un único docente concentra **`r ranking_profesores$clics[1]`** clics, lo que representa el **`r ranking_profesores$Porcentaje[1]`%** de la actividad total del grupo docente. Esta asimetría es muy pronunciada y plantea interrogantes sobre la distribución real de tareas entre el equipo: ¿es esta concentración reflejo de roles diferenciados dentro del equipo docente, o indica una distribución desequilibrada de la carga de trabajo?
+
+```{r ranking-prof}
+kable(
+  ranking_profesores,
+  booktabs  = TRUE,
+  col.names = c("Profesor", "Clics", "% del total"),
+  caption   = "Distribución de clics entre el profesorado de la asignatura a lo largo del curso."
+) %>%
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+```{r fig-ranking-prof, fig.cap="Reparto de la actividad total registrada entre los profesores de la asignatura."}
+ggplot(ranking_profesores,
+       aes(x = reorder(Nombre.completo.del.usuario, clics), y = clics)) +
+  geom_col(fill = "#756BB1") +
+  coord_flip() +
+  labs(x = NULL, y = "Número de clics") +
+  theme_minimal()
+```
+
+## Patrones temporales de la actividad docente
+
+La Figura \@ref(fig:evol-diaria-prof) representa la evolución diaria de la actividad del profesorado a lo largo del curso. A diferencia del alumnado, que muestra una actividad de fondo relativamente continua con picos asociados a entregas, el profesorado presenta un patrón más intermitente. El coeficiente de variación diario es de **`r round(cv_prof_dia, 2)`**, lo que indica un patrón de **`r diag_prof_picos`**: el **`r round(pct_clics_dias_pico, 1)`%** de los clics se concentra en tan solo el 10% de los días más activos, representados en la figura por los valores que superan la línea discontinua roja. Estos picos corresponden probablemente a jornadas de publicación de nuevo material, corrección de tareas o configuración del curso.
+
+```{r evol-diaria-prof, fig.cap="Evolución diaria de la actividad del profesorado. La línea discontinua roja representa el percentil 90; los días que la superan concentran una fracción desproporcionada de la actividad total."}
+ggplot(prof_por_dia, aes(x = Solo_Fecha, y = clics_dia)) +
+  geom_line(color = "#6A51A3", linewidth = 0.8) +
+  geom_hline(yintercept = cuantil_90_prof, linetype = "dashed", color = "red") +
+  labs(x = "Fecha", y = "Clics diarios") +
+  theme_minimal()
+```
+
+Un aspecto destacable del patrón temporal docente es la actividad fuera del horario lectivo convencional. El **`r round(prof_noche_fin$pct_noche, 1)`%** de los eventos del profesorado se produce en horario nocturno (entre las 22:00 y las 06:00) y el **`r round(prof_noche_fin$pct_fin_semana, 1)`%** en fin de semana. Aunque estos porcentajes son modestos en términos absolutos, indican que la gestión del Aula Virtual requiere dedicación más allá del horario de trabajo formal, algo que suele pasarse por alto cuando se evalúa la carga real asociada a la docencia.
+
+## Tipo y distribución temporal del contenido creado
+
+No toda la actividad del profesorado es equivalente. Para caracterizar mejor el trabajo docente se analizaron las acciones de creación y actualización de contenido, clasificándolas según si corresponden a material de tipo teórico (recursos, archivos, páginas, foros) o práctico (tareas, cuestionarios, prácticas). La Tabla \@ref(tab:teoria-practica) recoge esta distribución.
+
+```{r teoria-practica}
+kable(
+  teoria_practica_prof,
+  booktabs  = TRUE,
+  col.names = c("Tipo de contenido", "Acciones", "% del total"),
+  caption   = "Distribución de las acciones de creación y actualización de contenido docente según su tipo."
+) %>%
+  kable_styling(latex_options = c("hold_position"))
+```
+
+La Figura \@ref(fig:evol-creacion) muestra cómo evoluciona esta actividad de creación a lo largo del semestre. El resultado es claro: **`r diag_creacion`**. Concretamente, el **`r round(pct_material_inicio, 1)`%** de todas las acciones de creación y actualización se realizó en las cuatro primeras semanas del curso. Esto sugiere que la estructura del Aula Virtual se diseña y carga mayoritariamente antes de que el curso entre en pleno funcionamiento, y que posteriormente el profesorado realiza únicamente ajustes puntuales. Desde el punto de vista de la planificación docente, este patrón es eficiente, aunque también puede implicar cierta rigidez si surgen necesidades de adaptación a lo largo del semestre.
+
+```{r evol-creacion, fig.cap="Evolución semanal de las acciones de creación y actualización de contenido docente. La actividad se concentra mayoritariamente en las primeras semanas del curso."}
+if (nrow(material_prof) > 0) {
+  material_prof %>% count(Semana) %>%
+    ggplot(aes(x = Semana, y = n)) +
+    geom_line(color = "#31A354", linewidth = 0.8) +
+    geom_point(color = "#31A354", size = 1.5) +
+    labs(x = "Semana ISO", y = "Número de acciones") +
+    theme_minimal()
+}
+```
+
+Finalmente, el profesorado también dedica parte de su tiempo a monitorizar la actividad del alumnado: **`r vigilancia_prof$clics_vigilancia`** clics (**`r vigilancia_prof$pct_vigilancia`%** de su actividad total) corresponden a eventos de consulta de informes de actividad, listas de usuarios o registros de notas. Aunque es una proporción pequeña, refleja un seguimiento activo del progreso del grupo, lo que es una práctica pedagógica recomendable para detectar alumnos con dificultades o con una participación insuficiente.
+
 
 
 
