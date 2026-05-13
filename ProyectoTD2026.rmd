@@ -659,7 +659,9 @@ comparativa_dias %>%
   theme_minimal()
 ```
 
+\newpage
 
+# Conclusiones
 
 
 
