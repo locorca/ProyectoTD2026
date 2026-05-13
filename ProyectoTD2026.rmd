@@ -542,7 +542,7 @@ logs_alumnos %>%
 
 ## Distribución de la carga de trabajo entre docentes
 
-El análisis del profesorado parte de una constatación llamativa: la actividad no se distribuye de forma homogénea entre los docentes de la asignatura. La Tabla \@ref(tab:ranking-prof) y la Figura \@ref(fig:fig-ranking-prof) muestran el reparto de clics entre los diferentes profesores. Un único docente concentra **`r ranking_profesores$clics[1]`** clics, lo que representa el **`r ranking_profesores$Porcentaje[1]`%** de la actividad total del grupo docente. Esta asimetría es muy pronunciada y plantea interrogantes sobre la distribución real de tareas entre el equipo: ¿es esta concentración reflejo de roles diferenciados dentro del equipo docente, o indica una distribución desequilibrada de la carga de trabajo?
+Sobre el análisis del profesorado podemos destacar que la actividad no se distribuye de forma homogénea entre los docentes de la asignatura. La Tabla \@ref(tab:ranking-prof) y la Figura \@ref(fig:fig-ranking-prof) muestran el reparto de clics entre los diferentes profesores. Un único docente concentra **`r ranking_profesores$clics[1]`** clics, lo que representa el **`r ranking_profesores$Porcentaje[1]`%** de la actividad total del grupo docente. Esta asimetría es muy pronunciada y plantea que quizá no todos los profesores tienen la misma carga de trabajo (un profesor puede llevar toda la teoría y otros llevar los grupos de prácticas).
 
 ```{r ranking-prof}
 kable(
@@ -565,7 +565,7 @@ ggplot(ranking_profesores,
 
 ## Patrones temporales de la actividad docente
 
-La Figura \@ref(fig:evol-diaria-prof) representa la evolución diaria de la actividad del profesorado a lo largo del curso. A diferencia del alumnado, que muestra una actividad de fondo relativamente continua con picos asociados a entregas, el profesorado presenta un patrón más intermitente. El coeficiente de variación diario es de **`r round(cv_prof_dia, 2)`**, lo que indica un patrón de **`r diag_prof_picos`**: el **`r round(pct_clics_dias_pico, 1)`%** de los clics se concentra en tan solo el 10% de los días más activos, representados en la figura por los valores que superan la línea discontinua roja. Estos picos corresponden probablemente a jornadas de publicación de nuevo material, corrección de tareas o configuración del curso.
+La Figura \@ref(fig:evol-diaria-prof) representa la evolución diaria de la actividad del profesorado a lo largo del curso. A diferencia del alumnado, que muestra una actividad continua con picos asociados a entregas, el profesorado presenta un patrón más intermitente. El coeficiente de variación diario es de **`r round(cv_prof_dia, 2)`**, lo que indica un patrón de **`r diag_prof_picos`**: el **`r round(pct_clics_dias_pico, 1)`%** de los clics se concentra en tan solo el 10% de los días más activos, representados en la figura por los valores que superan la línea discontinua roja. Estos picos corresponden probablemente a jornadas de publicación de nuevo material, corrección de tareas o configuración del curso.
 
 ```{r evol-diaria-prof, fig.cap="Evolución diaria de la actividad del profesorado. La línea discontinua roja representa el percentil 90; los días que la superan concentran una fracción desproporcionada de la actividad total."}
 ggplot(prof_por_dia, aes(x = Solo_Fecha, y = clics_dia)) +
@@ -575,7 +575,7 @@ ggplot(prof_por_dia, aes(x = Solo_Fecha, y = clics_dia)) +
   theme_minimal()
 ```
 
-Un aspecto destacable del patrón temporal docente es la actividad fuera del horario lectivo convencional. El **`r round(prof_noche_fin$pct_noche, 1)`%** de los eventos del profesorado se produce en horario nocturno (entre las 22:00 y las 06:00) y el **`r round(prof_noche_fin$pct_fin_semana, 1)`%** en fin de semana. Aunque estos porcentajes son modestos en términos absolutos, indican que la gestión del Aula Virtual requiere dedicación más allá del horario de trabajo formal, algo que suele pasarse por alto cuando se evalúa la carga real asociada a la docencia.
+Un aspecto destacable del patrón temporal docente es la actividad fuera del horario lectivo convencional. El **`r round(prof_noche_fin$pct_noche, 1)`%** de los eventos del profesorado se produce en horario nocturno (entre las 22:00 y las 06:00) y el **`r round(prof_noche_fin$pct_fin_semana, 1)`%** en fin de semana. Estos porcentajes indican que la gestión del Aula Virtual requiere dedicación más allá del horario de trabajo formal.
 
 ## Tipo y distribución temporal del contenido creado
 
@@ -591,7 +591,7 @@ kable(
   kable_styling(latex_options = c("hold_position"))
 ```
 
-La Figura \@ref(fig:evol-creacion) muestra cómo evoluciona esta actividad de creación a lo largo del semestre. El resultado es claro: **`r diag_creacion`**. Concretamente, el **`r round(pct_material_inicio, 1)`%** de todas las acciones de creación y actualización se realizó en las cuatro primeras semanas del curso. Esto sugiere que la estructura del Aula Virtual se diseña y carga mayoritariamente antes de que el curso entre en pleno funcionamiento, y que posteriormente el profesorado realiza únicamente ajustes puntuales. Desde el punto de vista de la planificación docente, este patrón es eficiente, aunque también puede implicar cierta rigidez si surgen necesidades de adaptación a lo largo del semestre.
+La Figura \@ref(fig:evol-creacion) muestra cómo evoluciona esta actividad de creación a lo largo del semestre. El resultado es claro: **`r diag_creacion`**. Concretamente, el **`r round(pct_material_inicio, 1)`%** de todas las acciones de creación y actualización se realizó en las cuatro primeras semanas del curso. Esto sugiere que la estructura del Aula Virtual se diseña y carga mayoritariamente antes de que el curso entre en pleno funcionamiento, y que posteriormente el profesorado realiza únicamente ajustes puntuales.
 
 ```{r evol-creacion, fig.cap="Evolución semanal de las acciones de creación y actualización de contenido docente. La actividad se concentra mayoritariamente en las primeras semanas del curso."}
 if (nrow(material_prof) > 0) {
@@ -614,7 +614,7 @@ El contraste entre los perfiles de uso de alumnos y profesores permite entender 
 
 ## Velocidad de reacción ante nuevo material
 
-Una métrica de gran interés pedagógico es el tiempo que transcurre desde que el profesorado publica un nuevo módulo hasta que un alumno lo abre por primera vez. Este indicador, denominado latencia de apertura, refleja la receptividad del alumnado ante los nuevos contenidos. La Figura \@ref(fig:latencia) muestra la distribución de esta latencia para todos los módulos para los que se dispone de datos tanto de publicación como de primera apertura.
+Podemos analizar también el tiempo que transcurre desde que el profesorado publica un nuevo módulo hasta que un alumno lo abre por primera vez. Este indicador, denominado latencia de apertura, refleja como de receptivos son los alumnos ante los nuevos contenidos. La Figura \@ref(fig:latencia) muestra la distribución de esta latencia para todos los módulos para los que se dispone de datos tanto de publicación como de primera apertura.
 
 ```{r latencia, fig.cap="Distribución de la latencia de apertura del material nuevo, medida en horas desde la publicación hasta la primera apertura por parte de un alumno."}
 if (nrow(latencia_apertura) > 0) {
@@ -624,7 +624,8 @@ if (nrow(latencia_apertura) > 0) {
     theme_minimal()
 }
 ```
-La distribución es marcadamente asimétrica: la mediana se sitúa en **`r round(mediana_latencia, 1)`** horas, pero la media es de **`r round(media_latencia, 1)`** horas, lo que indica la presencia de una cola de módulos que tardan mucho más en ser abiertos. Esta diferencia entre media y mediana es informativa: la mayoría de los módulos se abren con relativa rapidez, pero hay un subconjunto que pasa desapercibido durante días o incluso semanas. Estos casos merecen atención: pueden corresponder a materiales publicados con mucha antelación, a recursos complementarios poco señalizados por el profesorado o a contenidos que el alumnado no sabe que existen.
+
+La distribución es marcadamente asimétrica: la mediana se sitúa en **`r round(mediana_latencia, 1)`** horas, pero la media es de **`r round(media_latencia, 1)`** horas, lo que indica la presencia de una cola de módulos que tardan mucho más en ser abiertos. Esta diferencia entre media y mediana es informativa: la mayoría de los módulos se abren con relativa rapidez, pero hay un subconjunto que pasa desapercibido durante días o incluso semanas. 
 
 ## Herramientas de uso exclusivo del profesorado
 
@@ -657,9 +658,6 @@ comparativa_dias %>%
   labs(x = "Día de la semana", y = "Porcentaje de eventos", color = "Grupo") +
   theme_minimal()
 ```
-
-
-En cuanto al uso del móvil, **`r grupo_mas_movil`** presenta una mayor proporción de accesos desde dispositivos móviles: el **`r round(pct_movil_alumnos, 1)`%** de los eventos de los alumnos proviene de móvil, frente al **`r round(pct_movil_profes, 1)`%** del profesorado. Esta diferencia tiene sentido: gestionar contenidos, configurar actividades o revisar entregas desde un dispositivo móvil es considerablemente más incómodo que hacerlo desde un ordenador, por lo que el profesorado tiende a reservar el móvil solo para consultas puntuales. Los alumnos, en cambio, utilizan el móvil de forma más habitual para consultar materiales o verificar el estado de sus entregas, especialmente cuando están fuera de casa.
 
 
 
