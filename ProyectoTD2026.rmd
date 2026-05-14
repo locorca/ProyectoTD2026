@@ -1,6 +1,6 @@
 ---
 title: "Logs de la Asignatura en Aula Virtual"
-subtitle: "Asignatura Tratamiento de Datos, Curso 2025-2026"
+subtitle: "Resumen analítico con eliminación de outliers por método de Hampel"
 author: "Joyce, Lorena, Sergio, Andrés y Marcos (Grupo P)"
 lang: es
 date: "`r format(Sys.Date(), '%d/%m/%Y')`"
@@ -17,352 +17,260 @@ header-includes:
 ---
 
 ```{r setup, include=FALSE}
-library(tidyverse)
-library(lubridate)
-library(knitr)
-library(kableExtra)
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+paquetes <- c("tidyverse", "lubridate", "knitr", "kableExtra", "scales")
+faltan <- setdiff(paquetes, rownames(installed.packages()))
+if (length(faltan) > 0) install.packages(faltan, dependencies = TRUE)
+invisible(sapply(paquetes, require, character.only = TRUE))
 options(OutDec = ",", digits = 3)
-knitr::opts_chunk$set(
-  echo      = FALSE,
-  warning   = FALSE,
-  message   = FALSE,
-  fig.align = "center",
-  out.width = "85%"
-)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center", out.width = "85%")
 ```
-
-En este proyecto de Análisis Exploratorio de Datos se estudian los registros de actividad del Aula Virtual (Moodle) de la asignatura Tratamiento de Datos durante el curso 2024-2025, con el objetivo de identificar patrones de comportamiento significativos en el alumnado y el profesorado. Tras una fase de preprocesado que incluye la conversión de marcas temporales, la generación de variables derivadas y la eliminación de duplicados, se llevan a cabo análisis univariante y multivariante, así como una comparativa entre perfiles de usuario. Los resultados revelan una tendencia al estudio en "atracón" en una fracción relevante del alumnado, una marcada asimetría en la carga de trabajo docente y diferencias funcionales claras entre el uso que hacen de la plataforma alumnos y profesores.
-
-**Abstract:** Learning Management Systems such as Moodle generate large volumes of interaction logs that, once analysed, can reveal meaningful behavioural patterns. This project applies Exploratory Data Analysis techniques to anonymised activity records from a university Virtual Classroom covering the 2024-2025 academic year. After preprocessing — including datetime parsing, feature engineering and duplicate removal — univariate and multivariate analyses were conducted. Key findings include a tendency toward study "binge" patterns in a significant fraction of students, a clear asymmetry in teaching workload, and functionally distinct platform usage between student and teaching-staff profiles.
-
-**Keywords:** Análisis Exploratorio de Datos; Logs de Moodle; Patrones de comportamiento; Aula Virtual; Ciencia de Datos.
-
-\newpage
 
 # Introducción
 
-## Contexto del estudio
+Este informe resume el análisis exploratorio de los registros de actividad del Aula Virtual de Moodle de la asignatura Tratamiento de Datos. El objetivo es identificar patrones de comportamiento del alumnado y del profesorado: intensidad de uso, distribución temporal, regularidad del estudio, recursos más y menos utilizados, carga docente, reacción del alumnado ante nuevo material y diferencias funcionales entre ambos roles.
 
-Las plataformas de gestión del aprendizaje como Moodle registran automáticamente cada interacción de sus usuarios: accesos a contenidos, envíos de tareas, consultas de foros, creación de materiales por parte del profesorado... Este rastro digital, denominado *log de actividad*, constituye una fuente de información extraordinaria para comprender cómo se relacionan alumnos y docentes con el entorno virtual de una asignatura, con qué intensidad lo hacen y en qué momentos se concentra ese uso.
+El dataset contiene eventos anonimizados con marca temporal, usuario, componente, evento, descripción, origen y dirección IP. Antes del análisis se convierten las fechas, se crean variables temporales y se eliminan duplicados exactos. Además, para evitar que usuarios o módulos extremadamente anómalos distorsionen medias, correlaciones y gráficos, se aplica el método de Hampel sobre las variables agregadas principales.
 
-El presente informe analiza los registros de actividad del Aula Virtual de la asignatura Tratamiento de Datos durante el curso 2025-2026. El dataset contiene eventos anonimizados que recogen, para cada interacción, la marca temporal, el usuario que la genera, el componente del sistema implicado, el tipo de evento y la dirección IP desde la que se produce.
+# Importación, preparación y limpieza
 
-## Preguntas de investigación
-
-El punto de partida del análisis fue un proceso de *brainstorming* en el que el equipo planteó las preguntas que consideró más relevantes sobre el uso del Aula Virtual. Estas preguntas se agruparon en tres bloques según el perfil de usuario al que se refieren.
-
-Sobre el **alumnado** se plantearon cuestiones relacionadas con los patrones temporales de conexión (horas y días de mayor actividad, semanas de mayor carga), con la regularidad o irregularidad del estudio a lo largo del semestre, con la intensidad y el tipo de uso (diferencias entre usuarios, proporción de actividad pasiva frente a activa, recursos que se ignoran)...
-
-Sobre el **profesorado** las preguntas se centraron en la distribución de la carga de trabajo entre los docentes, su patrón de actividad a lo largo del tiempo (regularidad frente a picos puntuales, presencia fuera del horario lectivo), el tipo de contenido que generan y la atención que dedican al seguimiento del alumnado.
-
-Finalmente, el bloque **comparativo** aborda aspectos que solo cobran sentido al contrastar los dos perfiles: la velocidad con que el alumnado reacciona ante la publicación de nuevo material, las herramientas que usa el profesorado pero el alumnado ignora, el grado de coincidencia en los patrones semanales...
-
-\newpage
-
-# Importación y preparación de los datos
-
-## Carga del dataset y enriquecimiento de variables
-
-El dataset original se encuentra en formato CSV y contiene un registro por cada evento registrado por Moodle. La primera tarea tras la carga es convertir la variable `Hora`, que Moodle exporta como texto, a un tipo *datetime* propiamente dicho mediante la función `dmy_hms` de la librería `lubridate`. Esta conversión es imprescindible para cualquier análisis temporal posterior.
-
-A partir de la marca temporal se derivan varias variables adicionales que facilitan el análisis: la hora del día en formato numérico (0–23), el día de la semana como factor ordenado, el número de semana ISO del año, y dos indicadores binarios que señalan si el evento ocurre en horario nocturno (entre las 22:00 y las 06:00) o en fin de semana (sábado o domingo). Este conjunto de variables derivadas permitirá responder a las preguntas de investigación planteadas sin necesidad de recalcular estas condiciones en cada análisis.
-
-```{r carga-y-preparacion}
-
-logs_raw <- read.csv("data/logs_moodle_anon.csv", sep = ",", stringsAsFactors = FALSE)
+```{r carga-preparacion}
+ruta_csv <- if (file.exists("data/logs_moodle_anon.csv")) "data/logs_moodle_anon.csv" else "logs_moodle_anon.csv"
+logs_raw <- read.csv(ruta_csv, sep = ",", stringsAsFactors = FALSE)
 
 logs <- logs_raw %>%
   mutate(
     Fecha_Completa = dmy_hms(Hora),
-    Solo_Fecha     = as.Date(Fecha_Completa),
-    Hora_num       = hour(Fecha_Completa),
+    Solo_Fecha = as.Date(Fecha_Completa),
+    Hora_num = hour(Fecha_Completa),
     Dia_semana_num = wday(Fecha_Completa, week_start = 1),
-    Dia_semana     = factor(
-      c("Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo")[Dia_semana_num],
-      levels = c("Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo")
+    Dia_semana = factor(
+      c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")[Dia_semana_num],
+      levels = c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
     ),
-    Semana        = isoweek(Fecha_Completa),
-    Es_fin_semana = Dia_semana %in% c("Sábado","Domingo"),
-    Es_noche      = Hora_num >= 22 | Hora_num < 6,
+    Semana = isoweek(Fecha_Completa),
+    Es_fin_semana = Dia_semana %in% c("Sábado", "Domingo"),
+    Es_noche = Hora_num >= 22 | Hora_num < 6
   )
-```
 
-## Limpieza y validación de la integridad del dataset
-
-Antes de extraer cualquier conclusión es imprescindible garantizar la calidad de los datos. Se realizaron dos comprobaciones básicas: la detección de registros duplicados exactos y la identificación de valores faltantes. En cuanto a los duplicados, fueron eliminados para evitar que inflen las frecuencias de uso. Aunque su número es pequeño en términos relativos, su presencia no es trivial.
-
-La Tabla \@ref(tab:limpieza) detalla las variables que presentan valores faltantes tras la carga.
-
-```{r limpieza}
 n_duplicados <- sum(duplicated(logs_raw))
-logs         <- logs %>% distinct()
+logs <- logs %>% distinct()
 
 faltantes <- tibble(
   Variable = names(logs),
-  N_NA     = colSums(is.na(logs)),
-  Pct_NA   = round(100 * N_NA / nrow(logs), 2)
+  N_NA = colSums(is.na(logs)),
+  Pct_NA = round(100 * N_NA / nrow(logs), 2)
 ) %>%
   filter(N_NA > 0) %>%
   arrange(desc(N_NA))
 
-kable(
-  faltantes,
-  booktabs  = TRUE,
+kable(faltantes,
+  booktabs = TRUE,
   col.names = c("Variable", "N.º valores NA", "% sobre total"),
-  caption   = "Variables con valores faltantes tras la carga del dataset."
+  caption = "Variables con valores faltantes tras la carga del dataset."
 ) %>%
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-## Segmentación por rol de usuario
+La limpieza conserva la información útil del log y evita inflar frecuencias mediante la eliminación de duplicados exactos. Los valores faltantes se revisan por variable, ya que en Moodle algunos campos pueden aparecer vacíos sin que eso implique necesariamente un error de registro.
 
-El dataset no incluye una columna que identifique explícitamente el rol de cada usuario. Para distinguir entre alumnos y profesores se implementó un algoritmo de clasificación operativa basado en el tipo de acciones realizadas. La premisa es sencilla: crear una sección del curso, crear un módulo o actualizarlo son acciones que en Moodle solo puede realizar el profesorado. Por tanto, cualquier usuario que haya generado al menos uno de estos eventos queda etiquetado como *profesor*; el resto se clasifica como *alumno*.
+# Segmentación por rol y método de Hampel
 
-```{r segmentacion}
-eventos_profesor_estricto <- c(
-  "Sección del curso creada",
-  "Módulo de curso creado",
-  "Módulo de curso actualizado"
-)
+El dataset no incluye una columna de rol. Por ello se usa un criterio operativo: se etiquetan como profesores los usuarios que han realizado al menos una acción exclusiva del profesorado en Moodle, como crear secciones, crear módulos o actualizar módulos. El resto de usuarios se considera alumnado.
+
+```{r segmentacion-hampel}
+eventos_profesor_estricto <- c("Sección del curso creada", "Módulo de curso creado", "Módulo de curso actualizado")
 
 profesores_ids <- logs %>%
   filter(Nombre.evento %in% eventos_profesor_estricto) %>%
   distinct(Nombre.completo.del.usuario) %>%
   pull()
 
-alumnos_ids <- logs %>%
-  filter(!Nombre.completo.del.usuario %in% profesores_ids) %>%
-  distinct(Nombre.completo.del.usuario) %>%
-  pull()
-
 logs_profesores <- logs %>% filter(Nombre.completo.del.usuario %in% profesores_ids)
-logs_alumnos    <- logs %>% filter(Nombre.completo.del.usuario %in% alumnos_ids)
+logs_alumnos_pre <- logs %>% filter(!Nombre.completo.del.usuario %in% profesores_ids)
+
+hampel_outlier <- function(x, k = 3) {
+  med <- median(x, na.rm = TRUE)
+  mad_raw <- median(abs(x - med), na.rm = TRUE)
+  if (is.na(mad_raw) || mad_raw == 0) {
+    return(rep(FALSE, length(x)))
+  }
+  abs(x - med) > k * 1.4826 * mad_raw
+}
+
+clics_por_alumno_pre <- logs_alumnos_pre %>%
+  count(Nombre.completo.del.usuario, name = "clics") %>%
+  mutate(outlier_hampel = hampel_outlier(clics))
+
+alumnos_outliers_hampel <- clics_por_alumno_pre %>%
+  filter(outlier_hampel) %>%
+  pull(Nombre.completo.del.usuario)
+logs_alumnos <- logs_alumnos_pre %>% filter(!Nombre.completo.del.usuario %in% alumnos_outliers_hampel)
+logs_analisis <- bind_rows(logs_profesores, logs_alumnos)
 
 resumen_estructura <- tibble(
-  Grupo     = c("Total", "Profesores", "Alumnos"),
-  Registros = c(nrow(logs), nrow(logs_profesores), nrow(logs_alumnos)),
-  Usuarios  = c(
-    n_distinct(logs$Nombre.completo.del.usuario),
-    n_distinct(logs_profesores$Nombre.completo.del.usuario),
-    n_distinct(logs_alumnos$Nombre.completo.del.usuario)
+  Grupo = c("Total original", "Profesores", "Alumnos antes de Hampel", "Alumnos tras Hampel", "Alumnos eliminados por Hampel"),
+  Registros = c(
+    nrow(logs), nrow(logs_profesores), nrow(logs_alumnos_pre), nrow(logs_alumnos),
+    nrow(logs_alumnos_pre) - nrow(logs_alumnos)
+  ),
+  Usuarios = c(
+    n_distinct(logs$Nombre.completo.del.usuario), n_distinct(logs_profesores$Nombre.completo.del.usuario),
+    n_distinct(logs_alumnos_pre$Nombre.completo.del.usuario), n_distinct(logs_alumnos$Nombre.completo.del.usuario),
+    length(alumnos_outliers_hampel)
   )
 )
 
-kable(
-  resumen_estructura,
+kable(resumen_estructura,
   booktabs = TRUE,
-  caption  = "Estructura y segmentación del dataset según el rol operativo."
+  caption = "Estructura del dataset y efecto de la eliminación de outliers por Hampel."
 ) %>%
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-La Tabla \@ref(tab:segmentacion) muestra el resultado de esta segmentación. La desproporción entre el volumen de registros de alumnos y el de profesores es esperable: los alumnos son más numerosos y consultan los materiales de forma continua, mientras que el profesorado interviene de forma más selectiva y puntual. 
+El método de Hampel se aplica sobre los clics acumulados por alumno porque esta variable resume la intensidad individual de uso y es la que más puede sesgar el análisis. Se marca como outlier cualquier valor situado a más de tres desviaciones absolutas medianas escaladas respecto a la mediana. Este criterio es robusto porque se basa en la mediana y la MAD, no en la media y la desviación típica, que son sensibles a extremos.
 
-```{r calculos-base, include=FALSE}
-# ---- Alumnos ----
-alumnos_hora   <- logs_alumnos %>% count(Hora_num,   sort = TRUE)
-alumnos_dia    <- logs_alumnos %>% count(Dia_semana, sort = TRUE)
-alumnos_semana <- logs_alumnos %>% count(Semana,     sort = TRUE)
+# Indicadores calculados tras Hampel
 
-eventos_entrega <- c(
-  "Se ha enviado una entrega","Entrega creada.","Intento enviado","Respuestas enviadas"
-)
+```{r calculos, include=FALSE}
+alumnos_hora <- logs_alumnos %>% count(Hora_num, sort = TRUE)
+alumnos_dia <- logs_alumnos %>% count(Dia_semana, sort = TRUE)
+alumnos_semana <- logs_alumnos %>% count(Semana, sort = TRUE)
+
+eventos_entrega <- c("Se ha enviado una entrega", "Entrega creada.", "Intento enviado", "Respuestas enviadas")
 entregas_por_fecha <- logs_alumnos %>%
   filter(Nombre.evento %in% eventos_entrega) %>%
   count(Solo_Fecha, sort = TRUE)
 
-uso_comp_alumnos <- logs_alumnos    %>% count(Componente, name = "n_alumnos")
-uso_comp_profes  <- logs_profesores %>% count(Componente, name = "n_profes")
-uso_comp_total   <- logs            %>% count(Componente, name = "n_total")
-
-recursos_menos_usados <- uso_comp_alumnos %>% arrange(n_alumnos) %>% slice(1:10)
-recursos_ignorados    <- uso_comp_total %>%
+uso_comp_alumnos <- logs_alumnos %>% count(Componente, name = "n_alumnos")
+uso_comp_profes <- logs_profesores %>% count(Componente, name = "n_profes")
+uso_comp_total <- logs_analisis %>% count(Componente, name = "n_total")
+recursos_menos_usados <- uso_comp_alumnos %>%
+  arrange(n_alumnos) %>%
+  slice_head(n = 10)
+recursos_ignorados <- uso_comp_total %>%
   left_join(uso_comp_alumnos, by = "Componente") %>%
   mutate(n_alumnos = replace_na(n_alumnos, 0L)) %>%
   filter(n_alumnos == 0) %>%
   arrange(desc(n_total))
 
-clics_por_alumno   <- logs_alumnos %>% count(Nombre.completo.del.usuario, name = "clics")
-ips_por_alumno     <- logs_alumnos %>%
+clics_por_alumno <- logs_alumnos %>% count(Nombre.completo.del.usuario, name = "clics")
+ips_por_alumno <- logs_alumnos %>%
   group_by(Nombre.completo.del.usuario) %>%
   summarise(ips_distintas = n_distinct(Dirección.IP), .groups = "drop")
 
-patron_pasivo      <- "visto|visualizado|visitada|vista|ha visualizado"
+patron_pasivo <- "visto|visualizado|visitada|vista|ha visualizado"
 pct_pasivo_alumnos <- logs_alumnos %>%
-  summarise(pct = 100 * mean(str_detect(str_to_lower(Nombre.evento), patron_pasivo),
-                             na.rm = TRUE)) %>% pull(pct)
+  summarise(pct = 100 * mean(str_detect(str_to_lower(Nombre.evento), patron_pasivo), na.rm = TRUE)) %>%
+  pull(pct)
 
-alumno_semana     <- logs_alumnos %>%
-  count(Nombre.completo.del.usuario, Semana, name = "eventos_semana")
+alumno_semana <- logs_alumnos %>% count(Nombre.completo.del.usuario, Semana, name = "eventos_semana")
 atracones_alumnos <- alumno_semana %>%
   group_by(Nombre.completo.del.usuario) %>%
   summarise(
-    total_eventos       = sum(eventos_semana),
-    semana_max          = max(eventos_semana),
+    total_eventos = sum(eventos_semana), semana_max = max(eventos_semana),
     ratio_concentracion = semana_max / total_eventos,
-    cv_semanal          = ifelse(mean(eventos_semana) > 0,
-                                 sd(eventos_semana) / mean(eventos_semana), NA_real_),
-    .groups = "drop"
+    cv_semanal = ifelse(mean(eventos_semana) > 0, sd(eventos_semana) / mean(eventos_semana), NA_real_), .groups = "drop"
   )
-prop_atracon        <- mean(atracones_alumnos$ratio_concentracion > 0.35, na.rm = TRUE) * 100
-diagnostico_atracon <- ifelse(prop_atracon >= 50,
-                              "predominan los atracones", "predomina la actividad constante")
+prop_atracon <- mean(atracones_alumnos$ratio_concentracion > 0.35, na.rm = TRUE) * 100
+diagnostico_atracon <- ifelse(prop_atracon >= 50, "predominan los atracones", "predomina la actividad constante")
 
-# ---- Profesores ----
-prof_noche_fin <- logs_profesores %>%
-  summarise(pct_noche      = 100 * mean(Es_noche,      na.rm = TRUE),
-            pct_fin_semana = 100 * mean(Es_fin_semana, na.rm = TRUE))
-
+prof_noche_fin <- logs_profesores %>% summarise(pct_noche = 100 * mean(Es_noche, na.rm = TRUE), pct_fin_semana = 100 * mean(Es_fin_semana, na.rm = TRUE))
 ranking_profesores <- logs_profesores %>%
   count(Nombre.completo.del.usuario, sort = TRUE, name = "clics") %>%
   mutate(Porcentaje = round(100 * clics / sum(clics), 2))
-
-prof_por_dia    <- logs_profesores %>% count(Solo_Fecha, name = "clics_dia")
-cv_prof_dia     <- sd(prof_por_dia$clics_dia) / mean(prof_por_dia$clics_dia)
+prof_por_dia <- logs_profesores %>% count(Solo_Fecha, name = "clics_dia")
+cv_prof_dia <- sd(prof_por_dia$clics_dia) / mean(prof_por_dia$clics_dia)
 cuantil_90_prof <- quantile(prof_por_dia$clics_dia, 0.9, na.rm = TRUE)
-pct_clics_dias_pico <- 100 *
-  sum(prof_por_dia$clics_dia[prof_por_dia$clics_dia >= cuantil_90_prof]) /
-  sum(prof_por_dia$clics_dia)
-diag_prof_picos <- ifelse(cv_prof_dia > 1,
-                          "picos puntuales", "trabajo relativamente diario")
+pct_clics_dias_pico <- 100 * sum(prof_por_dia$clics_dia[prof_por_dia$clics_dia >= cuantil_90_prof]) / sum(prof_por_dia$clics_dia)
+diag_prof_picos <- ifelse(cv_prof_dia > 1, "picos puntuales", "trabajo relativamente diario")
 
 material_prof <- logs_profesores %>%
   filter(str_detect(str_to_lower(Nombre.evento), "cread|actualiz")) %>%
   mutate(tipo_material = case_when(
-    str_detect(str_to_lower(Contexto.del.evento),
-               "tarea|cuestionario|práctica|practica|quiz") ~ "Práctica",
-    str_detect(str_to_lower(Contexto.del.evento),
-               "carpeta|recurso|url|archivo|página|pagina|foro|tema") ~ "Teoría",
+    str_detect(str_to_lower(Contexto.del.evento), "tarea|cuestionario|práctica|practica|quiz") ~ "Práctica",
+    str_detect(str_to_lower(Contexto.del.evento), "carpeta|recurso|url|archivo|página|pagina|foro|tema") ~ "Teoría",
     TRUE ~ "Otros"
   ))
-
 teoria_practica_prof <- material_prof %>%
   count(tipo_material, sort = TRUE) %>%
   mutate(Porcentaje = round(100 * n / sum(n), 2))
+semana_inicio <- if (nrow(material_prof) > 0) min(material_prof$Semana, na.rm = TRUE) else NA
+pct_material_inicio <- if (nrow(material_prof) > 0) 100 * sum(material_prof$Semana <= semana_inicio + 3, na.rm = TRUE) / nrow(material_prof) else NA_real_
+diag_creacion <- case_when(is.na(pct_material_inicio) ~ "no hay acciones suficientes para concluir", pct_material_inicio >= 70 ~ "la mayor parte del material se crea al inicio del curso", pct_material_inicio <= 40 ~ "la creación de material se reparte a lo largo del curso", TRUE ~ "hay un patrón mixto: inicio fuerte con mantenimiento posterior")
 
-semana_inicio       <- if (nrow(material_prof) > 0)
-  min(material_prof$Semana, na.rm = TRUE) else NA
-pct_material_inicio <- if (nrow(material_prof) > 0)
-  material_prof %>% filter(Semana <= semana_inicio + 3) %>%
-  summarise(pct = 100 * n() / nrow(material_prof)) %>% pull(pct) else NA_real_
-
-diag_creacion <- case_when(
-  is.na(pct_material_inicio) ~ "no hay acciones suficientes para concluir",
-  pct_material_inicio >= 70  ~ "la mayor parte del material se crea al inicio del curso",
-  pct_material_inicio <= 40  ~ "la creación de material se reparte a lo largo del curso",
-  TRUE ~ "hay un patrón mixto: inicio fuerte con mantenimiento posterior"
-)
-
-eventos_vigilancia <- c(
-  "Informe de registro visualizado","Informe de actividad visto",
-  "Informe de sesión visto","Informe de notas de usuario visto","Lista de usuarios vista"
-)
+eventos_vigilancia <- c("Informe de registro visualizado", "Informe de actividad visto", "Informe de sesión visto", "Informe de notas de usuario visto", "Lista de usuarios vista")
 vigilancia_prof <- logs_profesores %>%
   filter(Nombre.evento %in% eventos_vigilancia) %>%
-  summarise(clics_vigilancia = n(),
-            pct_vigilancia   = round(100 * n() / nrow(logs_profesores), 2))
+  summarise(clics_vigilancia = n(), pct_vigilancia = round(100 * n() / nrow(logs_profesores), 2))
 
-# ---- Comparativa ----
 material_nuevo <- logs_profesores %>%
   filter(Nombre.evento == "Módulo de curso creado") %>%
   mutate(module_id = str_extract(Descripción, "(?<=course module id ')\\d+(?=')")) %>%
   filter(!is.na(module_id)) %>%
   group_by(module_id) %>%
   summarise(fecha_creacion = min(Fecha_Completa), .groups = "drop")
-
 primera_apertura <- logs_alumnos %>%
   filter(Nombre.evento == "Módulo de curso visto") %>%
   mutate(module_id = str_extract(Descripción, "(?<=course module id ')\\d+(?=')")) %>%
   filter(!is.na(module_id)) %>%
   group_by(module_id) %>%
   summarise(fecha_primera_apertura = min(Fecha_Completa), .groups = "drop")
-
-latencia_apertura <- material_nuevo %>%
+latencia_apertura_pre <- material_nuevo %>%
   inner_join(primera_apertura, by = "module_id") %>%
-  mutate(horas_apertura = as.numeric(
-    difftime(fecha_primera_apertura, fecha_creacion, units = "hours"))) %>%
+  mutate(horas_apertura = as.numeric(difftime(fecha_primera_apertura, fecha_creacion, units = "hours"))) %>%
   filter(horas_apertura >= 0)
+latencia_apertura <- latencia_apertura_pre %>% filter(!hampel_outlier(horas_apertura))
+mediana_latencia <- if (nrow(latencia_apertura) > 0) median(latencia_apertura$horas_apertura, na.rm = TRUE) else NA_real_
+media_latencia <- if (nrow(latencia_apertura) > 0) mean(latencia_apertura$horas_apertura, na.rm = TRUE) else NA_real_
 
-mediana_latencia <- if (nrow(latencia_apertura) > 0)
-  median(latencia_apertura$horas_apertura, na.rm = TRUE) else NA_real_
-media_latencia   <- if (nrow(latencia_apertura) > 0)
-  mean(latencia_apertura$horas_apertura, na.rm = TRUE) else NA_real_
-
-herramientas_excl_prof <- setdiff(unique(logs_profesores$Componente),
-                                   unique(logs_alumnos$Componente))
-
-dist_dias_alumnos <- logs_alumnos    %>% count(Dia_semana, name = "n_alumnos") %>%
+herramientas_excl_prof <- setdiff(unique(logs_profesores$Componente), unique(logs_alumnos$Componente))
+dist_dias_alumnos <- logs_alumnos %>%
+  count(Dia_semana, name = "n_alumnos") %>%
   mutate(p_alumnos = n_alumnos / sum(n_alumnos))
-dist_dias_profes  <- logs_profesores %>% count(Dia_semana, name = "n_profes")  %>%
-  mutate(p_profes  = n_profes  / sum(n_profes))
-comparativa_dias  <- full_join(dist_dias_alumnos, dist_dias_profes, by = "Dia_semana") %>%
-  mutate(across(where(is.integer), ~ replace_na(., 0L)),
-         across(where(is.double),  ~ replace_na(., 0)))
-indice_solape   <- 100 * sum(pmin(comparativa_dias$p_alumnos, comparativa_dias$p_profes))
+dist_dias_profes <- logs_profesores %>%
+  count(Dia_semana, name = "n_profes") %>%
+  mutate(p_profes = n_profes / sum(n_profes))
+comparativa_dias <- full_join(dist_dias_alumnos, dist_dias_profes, by = "Dia_semana") %>% mutate(across(where(is.integer), ~ replace_na(., 0L)), across(where(is.double), ~ replace_na(., 0)))
+indice_solape <- 100 * sum(pmin(comparativa_dias$p_alumnos, comparativa_dias$p_profes))
 dia_top_alumnos <- alumnos_dia$Dia_semana[[1]]
-dia_top_profes  <- dist_dias_profes %>%
-  arrange(desc(n_profes)) %>% slice(1) %>% pull(Dia_semana)
+dia_top_profes <- dist_dias_profes %>%
+  arrange(desc(n_profes)) %>%
+  slice(1) %>%
+  pull(Dia_semana)
 
 perfil_alumnos <- logs_alumnos %>%
   group_by(Nombre.completo.del.usuario) %>%
-  summarise(clics         = n(),
-            dias_activos  = n_distinct(Solo_Fecha),
-            ips_distintas = n_distinct(Dirección.IP),
-            media_hora    = mean(Hora_num, na.rm = TRUE),
-            .groups = "drop")
-
-vars_num   <- perfil_alumnos %>%
-  select(clics, dias_activos, ips_distintas, media_hora)
+  summarise(clics = n(), dias_activos = n_distinct(Solo_Fecha), ips_distintas = n_distinct(Dirección.IP), media_hora = mean(Hora_num, na.rm = TRUE), .groups = "drop")
+vars_num <- perfil_alumnos %>% select(clics, dias_activos, ips_distintas, media_hora)
 matriz_cor <- cor(vars_num, use = "pairwise.complete.obs", method = "pearson")
 ```
 
-\newpage
-
-# Análisis Univariante
-
-Una vez garantizada la estructura correcta del *data frame*, la adecuación de los tipos de datos y la integridad del dataset, se procede al análisis individual de las variables más relevantes para el estudio. El análisis univariante permite caracterizar el comportamiento de cada variable de forma aislada antes de explorar las relaciones entre ellas.
-
-## Variables numéricas
-
-La Tabla \@ref(tab:stats-numericas) recoge los principales estadísticos descriptivos de las variables numéricas de interés: el número de clics acumulados por alumno a lo largo del curso, el número de IPs distintas desde las que cada alumno se conecta y la latencia de apertura del material nuevo, medida en horas desde su publicación hasta el primer acceso de un alumno.
+# Análisis univariante
 
 ```{r stats-numericas}
 resumen_num <- tibble(
-  Variable       = c("Clics por alumno", "IPs distintas", "Latencia apertura (h)"),
-  Media          = c(mean(clics_por_alumno$clics),
-                     mean(ips_por_alumno$ips_distintas),
-                     mean(latencia_apertura$horas_apertura, na.rm = TRUE)),
-  Mediana        = c(median(clics_por_alumno$clics),
-                     median(ips_por_alumno$ips_distintas),
-                     median(latencia_apertura$horas_apertura, na.rm = TRUE)),
-  `Desv. típica` = c(sd(clics_por_alumno$clics),
-                     sd(ips_por_alumno$ips_distintas),
-                     sd(latencia_apertura$horas_apertura, na.rm = TRUE)),
-  Mínimo         = c(min(clics_por_alumno$clics),
-                     min(ips_por_alumno$ips_distintas),
-                     min(latencia_apertura$horas_apertura, na.rm = TRUE)),
-  Máximo         = c(max(clics_por_alumno$clics),
-                     max(ips_por_alumno$ips_distintas),
-                     max(latencia_apertura$horas_apertura, na.rm = TRUE))
+  Variable = c("Clics por alumno", "IPs distintas", "Latencia apertura (h)"),
+  Media = c(mean(clics_por_alumno$clics), mean(ips_por_alumno$ips_distintas), mean(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  Mediana = c(median(clics_por_alumno$clics), median(ips_por_alumno$ips_distintas), median(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  `Desv. típica` = c(sd(clics_por_alumno$clics), sd(ips_por_alumno$ips_distintas), sd(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  Mínimo = c(min(clics_por_alumno$clics), min(ips_por_alumno$ips_distintas), min(latencia_apertura$horas_apertura, na.rm = TRUE)),
+  Máximo = c(max(clics_por_alumno$clics), max(ips_por_alumno$ips_distintas), max(latencia_apertura$horas_apertura, na.rm = TRUE))
 )
-
-kable(resumen_num, booktabs = TRUE, digits = 2,
-      caption = "Estadísticos descriptivos de las principales variables numéricas del perfil de alumno.") %>%
+kable(resumen_num, booktabs = TRUE, digits = 2, caption = "Estadísticos descriptivos tras aplicar Hampel.") %>%
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-El número de clics por alumno es quizás la variable más informativa de las tres. La diferencia entre el valor mínimo y el máximo es de **`r max(clics_por_alumno$clics) - min(clics_por_alumno$clics)`** clics, un rango muy amplio. La Figura \@ref(fig:hist-clics) muestra que la distribución es claramente asimétrica hacia la derecha: la mayor parte de los alumnos se sitúa en la zona de actividad moderada, mientras que una pequeña fracción acumula un número de interacciones muy por encima de la media.
+Tras eliminar los alumnos con actividad extrema por Hampel, los clics por alumno siguen siendo la variable más informativa. La distribución mantiene asimetría hacia la derecha, pero sin que unos pocos usuarios condicionen de forma excesiva las medias, los gráficos o las correlaciones.
 
-```{r hist-clics, fig.cap="Distribución del número de clics totales por alumno a lo largo del curso. La cola derecha evidencia la presencia de usuarios con una actividad muy superior a la media."}
+```{r hist-clics, fig.cap="Distribución del número de clics por alumno tras aplicar Hampel."}
 ggplot(clics_por_alumno, aes(x = clics)) +
   geom_histogram(bins = 30, fill = "#2C7FB8", color = "white") +
   labs(x = "Clics totales", y = "Número de alumnos") +
   theme_minimal()
 ```
 
-El diagrama de caja de la Figura \@ref(fig:box-clics) permite identificar con precisión los valores atípicos. Varios alumnos quedan por encima del bigote superior, confirmando lo que el histograma ya insinuaba. Estos valores atípicos no se consideran errores de medida sino casos extremos.
-
-```{r box-clics, fig.cap="Diagrama de caja del número de clics por alumno. Los puntos por encima del bigote superior son valores atípicos confirmados."}
+```{r box-clics, fig.cap="Diagrama de caja del número de clics por alumno tras aplicar Hampel."}
 ggplot(clics_por_alumno, aes(y = clics)) +
   geom_boxplot(fill = "#7FCDBB", width = 0.4) +
   labs(y = "Clics totales") +
@@ -370,34 +278,24 @@ ggplot(clics_por_alumno, aes(y = clics)) +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 ```
 
-En cuanto a la movilidad de las conexiones, la mediana de IPs distintas por alumno se sitúa en **`r median(ips_por_alumno$ips_distintas)`**, lo que indica que la mayoría de los estudiantes accede desde un número reducido de ubicaciones de red, probablemente el domicilio y la universidad. Los valores más altos de este indicador pueden corresponder a alumnos que estudian desde lugares muy diversos (bibliotecas, cafeterías, domicilios de familiares) o que utilizan redes de datos móviles, que asignan IPs dinámicas con frecuencia.
-
-## Variables categóricas
-
-Para las variables categóricas el análisis univariante se centra en la distribución de frecuencias. Una primera aproximación al uso de la plataforma la ofrece la Tabla \@ref(tab:freq-componentes), que recoge los diez componentes del Aula Virtual con mayor número de eventos totales. Esta tabla permite identificar qué módulos concentran la mayor actividad y cuáles quedan en un segundo plano.
+Los componentes más frecuentes muestran qué herramientas concentran la actividad global. En el alumnado predominan acciones de consulta o visualización, lo que se refuerza con el hecho de que el **`r round(pct_pasivo_alumnos, 1)`%** de sus eventos son de carácter pasivo.
 
 ```{r freq-componentes}
-kable(
-  head(uso_comp_total, 10),
-  booktabs  = TRUE,
-  col.names = c("Componente", "N.º de eventos"),
-  caption   = "Los diez componentes del Aula Virtual con mayor número de eventos registrados (todos los usuarios)."
+kable(head(uso_comp_total, 10),
+  booktabs = TRUE, col.names = c("Componente", "N.º de eventos"),
+  caption = "Diez componentes con mayor número de eventos tras Hampel."
 ) %>%
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-Desde el punto de vista temporal, la Figura \@ref(fig:bar-dia) muestra cómo se distribuye la actividad del alumnado a lo largo de los días de la semana. El **`r alumnos_dia$Dia_semana[1]`** acumula el mayor número de eventos y la actividad cae de forma progresiva hacia el fin de semana, aunque la actividad no llega a ser nula, lo que indica que una parte del alumnado sí trabaja en el Aula Virtual durante el fin de semana, especialmente en períodos de entrega.
-
-```{r bar-dia, fig.cap="Frecuencia de eventos del alumnado por día de la semana a lo largo del curso completo."}
+```{r bar-dia, fig.cap="Actividad del alumnado por día de la semana tras Hampel."}
 ggplot(alumnos_dia, aes(x = Dia_semana, y = n)) +
   geom_col(fill = "#41AE76") +
   labs(x = "Día de la semana", y = "Número de eventos") +
   theme_minimal()
 ```
 
-La distribución horaria (Figura \@ref(fig:bar-hora)) completa el cuadro de los patrones temporales de los alumnos. Se observa un pico pronunciado a las **`r alumnos_hora$Hora_num[1]`:00**, hora que concentra el mayor número de interacciones. A partir de ahí la actividad desciende de forma gradual hacia la noche, aunque no desaparece completamente: los accesos en horario nocturno (después de las 22:00) son minoritarios pero no despreciables, lo que refleja que una parte del alumnado trabaja con la plataforma fuera del horario convencional, ya sea por preferencia personal o por compatibilidad con otras obligaciones.
-
-```{r bar-hora, fig.cap="Distribución horaria de la actividad del alumnado. El pico principal se sitúa en las horas centrales del día."}
+```{r bar-hora, fig.cap="Distribución horaria de la actividad del alumnado tras Hampel."}
 ggplot(alumnos_hora, aes(x = Hora_num, y = n)) +
   geom_col(fill = "#2C7FB8") +
   scale_x_continuous(breaks = 0:23) +
@@ -405,13 +303,11 @@ ggplot(alumnos_hora, aes(x = Hora_num, y = n)) +
   theme_minimal()
 ```
 
-Un dato que merece atención especial es la naturaleza de las interacciones: el **`r round(pct_pasivo_alumnos, 1)`%** de los eventos del alumnado corresponde a acciones de visualización pasiva, es decir, acceder a una página, ver un recurso o consultar un archivo sin generar ninguna respuesta o aportación. Este porcentaje tan elevado sugiere que el Aula Virtual se utiliza predominantemente como repositorio de consulta y no como espacio de participación activa. 
+# Concentración temporal y uso de recursos
 
-## Análisis de la concentración temporal y uso de recursos
+La evolución semanal del alumnado conserva un patrón irregular: hay picos concentrados que coinciden previsiblemente con entregas o evaluaciones. El ratio de concentración semanal permite medir el patrón de estudio en "atracón": el **`r round(prop_atracon, 1)`%** del alumnado concentra más del 35% de su actividad en una única semana; por tanto, **`r diagnostico_atracon`**.
 
-Una de las cuestiones de mayor interés es si el alumnado distribuye su trabajo de forma regular a lo largo del semestre o si, por el contrario, concentra sus esfuerzos en períodos concretos próximos a las fechas de entrega. La Figura \@ref(fig:evol-semanal) muestra la evolución semanal de la actividad total del alumnado. La imagen que ofrece es la de una actividad irregular, con semanas de alta intensidad que contrastan con períodos de baja actividad. Los picos más pronunciados coinciden, presumiblemente, con las fechas de entrega de prácticas o con exámenes.
-
-```{r evol-semanal, fig.cap="Evolución semanal de la actividad total del alumnado. Los picos pronunciados coinciden previsiblemente con períodos de entrega o evaluación."}
+```{r evol-semanal, fig.cap="Evolución semanal de la actividad del alumnado tras Hampel."}
 ggplot(alumnos_semana, aes(x = Semana, y = n)) +
   geom_line(color = "#88419D", linewidth = 0.8) +
   geom_point(color = "#88419D", size = 1.6) +
@@ -419,9 +315,7 @@ ggplot(alumnos_semana, aes(x = Semana, y = n)) +
   theme_minimal()
 ```
 
-Esta hipótesis se confirma al analizar específicamente los eventos de envío de tareas (Figura \@ref(fig:entregas)). Los envíos se concentran en muy pocas fechas, con picos muy marcados que rompen completamente la tendencia general. 
-
-```{r entregas, fig.cap="Evolución temporal de los eventos de entrega de tareas. Los picos corresponden a las fechas límite de entrega de las prácticas de la asignatura."}
+```{r entregas, fig.cap="Eventos de entrega de tareas por fecha."}
 if (nrow(entregas_por_fecha) > 0) {
   ggplot(entregas_por_fecha, aes(x = Solo_Fecha, y = n)) +
     geom_line(color = "#E34A33", linewidth = 0.8) +
@@ -430,9 +324,7 @@ if (nrow(entregas_por_fecha) > 0) {
 }
 ```
 
-Para cuantificar el grado de concentración de la actividad a nivel individual se calculó, para cada alumno, el ratio de concentración semanal: el cociente entre el número de eventos registrados en su semana más activa y el total de eventos acumulados a lo largo de todo el curso. Un ratio elevado indica que la actividad del alumno está muy concentrada en un período corto de tiempo. Fijando en 0,35 el umbral a partir del cual se considera que un alumno presenta este patrón, la Figura \@ref(fig:hist-atracon) muestra que el **`r round(prop_atracon, 1)`%** del alumnado supera dicho umbral. En consecuencia, **`r diagnostico_atracon`** en este grupo de estudio. Este resultado tiene implicaciones prácticas evidentes: una mayoría de alumnos no mantiene un ritmo de trabajo sostenido a lo largo del cuatrimestre.
-
-```{r hist-atracon, fig.cap="Distribución del ratio de concentración semanal por alumno. La línea roja discontinua marca el umbral de 0,35; los valores a su derecha corresponden a alumnos con patrón de atracón."}
+```{r hist-atracon, fig.cap="Ratio de concentración semanal del alumnado. La línea marca el umbral 0,35."}
 ggplot(atracones_alumnos, aes(x = ratio_concentracion)) +
   geom_histogram(bins = 25, fill = "#FDAE6B", color = "white") +
   geom_vline(xintercept = 0.35, linetype = "dashed", color = "red") +
@@ -440,134 +332,84 @@ ggplot(atracones_alumnos, aes(x = ratio_concentracion)) +
   theme_minimal()
 ```
 
-Por otro lado, no todos los componentes del Aula Virtual reciben la misma atención. La Figura \@ref(fig:recursos-poco-usados) recoge los diez módulos con menor número de eventos generados por el alumnado. Algunos de ellos registran apenas un puñado de interacciones durante todo el curso, lo que puede deberse a que el alumnado desconoce su existencia, a que no los considera relevantes para la asignatura o simplemente a que el profesorado no los ha integrado de forma explícita en la dinámica del curso.
-
-```{r recursos-poco-usados, fig.cap="Los diez componentes del Aula Virtual con menor número de eventos generados por el alumnado."}
-ggplot(recursos_menos_usados,
-       aes(x = reorder(Componente, n_alumnos), y = n_alumnos)) +
+```{r recursos-poco-usados, fig.cap="Diez componentes menos usados por el alumnado tras Hampel."}
+ggplot(recursos_menos_usados, aes(x = reorder(Componente, n_alumnos), y = n_alumnos)) +
   geom_col(fill = "#B3DE69") +
   coord_flip() +
   labs(x = "Componente", y = "Número de eventos") +
   theme_minimal()
 ```
 
-\newpage
-
-# Análisis Multivariante
-
-El análisis univariante ha permitido caracterizar el comportamiento de las variables individuales. El siguiente paso es explorar las relaciones entre ellas, ya que los patrones más interesantes suelen emerger al cruzar variables. Se abordan tres tipos de relaciones según la naturaleza de las variables involucradas: numérica-numérica, categórica-categórica y numérica-categórica.
-
-## Relaciones entre variables numéricas
-
-La Tabla \@ref(tab:pearson) recoge la matriz de correlación de Pearson entre las cinco variables numéricas que caracterizan el perfil de cada alumno. Este coeficiente mide el grado de asociación lineal entre pares de variables y toma valores entre -1 (relación lineal negativa perfecta) y 1 (relación lineal positiva perfecta), siendo 0 indicativo de ausencia de relación lineal.
+# Análisis multivariante
 
 ```{r pearson}
-kable(
-  round(matriz_cor, 3),
+kable(round(matriz_cor, 3),
   booktabs = TRUE,
-  caption  = "Matriz de correlación de Pearson entre las variables numéricas del perfil de alumno."
+  caption = "Matriz de correlación de Pearson entre variables numéricas del perfil de alumno tras Hampel."
 ) %>%
   kable_styling(latex_options = c("striped", "hold_position", "scale_down"))
 ```
 
-La correlación más destacada es la que existe entre el número de clics totales y el número de días activos. Una correlación positiva entre estas dos variables indica que los alumnos que aparecen más días en el log tienden a acumular también más interacciones, lo que es intuitivamente razonable: la presencia continuada en la plataforma favorece la acumulación de eventos. Sin embargo, la correlación no es perfecta, lo que indica que hay alumnos muy activos que concentran muchos clics en pocos días (el perfil de atracón identificado anteriormente) y otros que aparecen muchos días pero con una actividad diaria muy moderada. El resto de correlaciones de la tabla son débiles, lo que sugiere que la hora media de conexión, el porcentaje de uso del móvil y el número de IPs distintas son, en gran medida, independientes del volumen de actividad total.
+La relación más relevante se mantiene entre clics totales y días activos: quienes entran en más días suelen acumular más eventos. Aun así, la correlación no es perfecta, porque coexisten perfiles de uso constante con otros que concentran mucha actividad en pocos días. El número de IPs y la hora media de conexión aportan información complementaria, pero no explican por sí solos la intensidad de uso.
 
-La Figura \@ref(fig:scatter-clics-dias) representa visualmente la relación entre días activos y clics. La nube de puntos muestra una tendencia positiva clara, confirmada por la recta de regresión, aunque la dispersión es considerable. Esta dispersión es, precisamente, la que hace interesante el análisis: hay alumnos que con pocos días activos acumulan muchos clics (indicativo del patrón de atracón) y otros con muchos días activos pero pocos clics diarios (indicativo de un uso pasivo y constante). Ambos extremos representan estrategias de uso de la plataforma muy distintas.
-
-```{r scatter-clics-dias, fig.cap="Relación entre el número de días en que cada alumno estuvo activo y su total de clics durante el curso. La recta negra muestra la tendencia lineal."}
+```{r scatter-clics-dias, fig.cap="Relación entre días activos y clics por alumno tras Hampel."}
 ggplot(perfil_alumnos, aes(x = dias_activos, y = clics)) +
   geom_point(alpha = 0.5, color = "#D95F0E", size = 1.5) +
   geom_smooth(method = "lm", se = FALSE, color = "black", linewidth = 0.8) +
-  labs(x = "Días activos en el curso", y = "Clics totales") +
+  labs(x = "Días activos", y = "Clics totales") +
   theme_minimal()
 ```
 
-## Relaciones entre variables categóricas
-
-Para analizar la posible asociación entre el rol del usuario (alumno o profesor) y el día de la semana en que se concentra su actividad, se aplicó el test chi-cuadrado de independencia. Este test evalúa si la distribución de eventos por día de la semana difiere significativamente entre los dos grupos. Los resultados se recogen en la Tabla \@ref(tab:chi2).
-
 ```{r chi2}
-tabla_chi <- logs %>%
-  mutate(Rol = ifelse(Nombre.completo.del.usuario %in% profesores_ids,
-                      "Profesor", "Alumno")) %>%
+tabla_chi <- logs_analisis %>%
+  mutate(Rol = ifelse(Nombre.completo.del.usuario %in% profesores_ids, "Profesor", "Alumno")) %>%
   count(Rol, Dia_semana) %>%
   pivot_wider(names_from = Dia_semana, values_from = n, values_fill = 0) %>%
   column_to_rownames("Rol") %>%
   as.matrix()
-
 chi_res <- suppressWarnings(chisq.test(tabla_chi))
-
-kable(
-  tibble(
-    `Estadístico chi²`   = round(unname(chi_res$statistic), 2),
-    `Grados de libertad` = unname(chi_res$parameter),
-    `p-valor`            = chi_res$p.value
-  ),
-  booktabs = TRUE,
-  caption  = "Test chi-cuadrado de independencia entre el rol del usuario y el día de la semana de actividad."
+kable(tibble(`Estadístico chi²` = round(unname(chi_res$statistic), 2), `Grados de libertad` = unname(chi_res$parameter), `p-valor` = chi_res$p.value),
+  booktabs = TRUE, caption = "Test chi-cuadrado entre rol y día de la semana tras Hampel."
 ) %>%
   kable_styling(latex_options = c("hold_position"))
 ```
 
-El p-valor obtenido permite rechazar la hipótesis nula de independencia: el día de la semana y el rol del usuario no son variables independientes. Dicho de otra manera, alumnos y profesores no siguen el mismo patrón de actividad semanal. La Figura \@ref(fig:barras-rol-dia), que representa la distribución relativa de eventos por día y rol, permite apreciar estas diferencias visualmente: los profesores tienden a concentrar su actividad en los primeros días de la semana, mientras que los alumnos presentan una distribución algo más uniforme a lo largo de los días lectivos, con un descenso más pronunciado hacia el fin de semana.
+El test chi-cuadrado evalúa si el rol y el día de actividad son independientes. Si el p-valor es bajo, se concluye que alumnado y profesorado no distribuyen su actividad de la misma forma a lo largo de la semana.
 
-```{r barras-rol-dia, fig.cap="Distribución relativa de la actividad por día de la semana en función del rol del usuario. Se observan diferencias apreciables entre alumnos y profesores."}
-logs %>%
-  mutate(Rol = ifelse(Nombre.completo.del.usuario %in% profesores_ids,
-                      "Profesor", "Alumno")) %>%
+```{r barras-rol-dia, fig.cap="Distribución relativa de actividad por día de la semana y rol."}
+logs_analisis %>%
+  mutate(Rol = ifelse(Nombre.completo.del.usuario %in% profesores_ids, "Profesor", "Alumno")) %>%
   count(Rol, Dia_semana) %>%
   ggplot(aes(x = Dia_semana, y = n, fill = Rol)) +
   geom_col(position = "fill") +
   scale_y_continuous(labels = scales::percent) +
-  labs(x = "Día de la semana", y = "Proporción de eventos", fill = "Rol") +
+  labs(x = "Día", y = "Proporción", fill = "Rol") +
   theme_minimal()
 ```
-
-## Relaciones entre variables numéricas y categóricas
-
-La combinación de variables numéricas y categóricas permite explorar cómo varía la intensidad de uso según el contexto temporal o el tipo de acceso. La Figura \@ref(fig:box-clics-dia) muestra la distribución de los clics diarios de los alumnos desglosada por día de la semana mediante diagramas de caja. Los días lectivos presentan medianas más altas y mayor variabilidad, mientras que el fin de semana muestra medianas más bajas, aunque con algunos valores atípicos que corresponden a alumnos especialmente activos en esas jornadas. Esta heterogeneidad es coherente con los resultados del análisis univariante: el alumnado no es homogéneo en sus hábitos de estudio.
-
-```{r box-clics-dia, fig.cap="Distribución de los clics diarios del alumnado según el día de la semana. Los días lectivos muestran medianas más altas y mayor variabilidad."}
-logs_alumnos %>%
-  count(Solo_Fecha, Dia_semana, name = "clics_dia") %>%
-  ggplot(aes(x = Dia_semana, y = clics_dia)) +
-  geom_boxplot(fill = "#FDBB84") +
-  labs(x = "Día de la semana", y = "Clics diarios") +
-  theme_minimal()
-```
-
-\newpage
 
 # Perfil de uso del profesorado
 
-## Distribución de la carga de trabajo entre docentes
-
-Sobre el análisis del profesorado podemos destacar que la actividad no se distribuye de forma homogénea entre los docentes de la asignatura. La Tabla \@ref(tab:ranking-prof) y la Figura \@ref(fig:fig-ranking-prof) muestran el reparto de clics entre los diferentes profesores. Un único docente concentra **`r ranking_profesores$clics[1]`** clics, lo que representa el **`r ranking_profesores$Porcentaje[1]`%** de la actividad total del grupo docente. Esta asimetría es muy pronunciada y plantea que quizá no todos los profesores tienen la misma carga de trabajo (un profesor puede llevar toda la teoría y otros llevar los grupos de prácticas).
+La actividad docente es más concentrada e intermitente que la del alumnado. Un único profesor puede acumular una parte muy elevada de los clics, lo que sugiere una distribución desigual de tareas o responsabilidades dentro del curso.
 
 ```{r ranking-prof}
-kable(
-  ranking_profesores,
-  booktabs  = TRUE,
-  col.names = c("Profesor", "Clics", "% del total"),
-  caption   = "Distribución de clics entre el profesorado de la asignatura a lo largo del curso."
+kable(ranking_profesores,
+  booktabs = TRUE, col.names = c("Profesor", "Clics", "% del total"),
+  caption = "Distribución de clics entre el profesorado."
 ) %>%
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-```{r fig-ranking-prof, fig.cap="Reparto de la actividad total registrada entre los profesores de la asignatura."}
-ggplot(ranking_profesores,
-       aes(x = reorder(Nombre.completo.del.usuario, clics), y = clics)) +
+```{r fig-ranking-prof, fig.cap="Reparto de la actividad registrada entre docentes."}
+ggplot(ranking_profesores, aes(x = reorder(Nombre.completo.del.usuario, clics), y = clics)) +
   geom_col(fill = "#756BB1") +
   coord_flip() +
   labs(x = NULL, y = "Número de clics") +
   theme_minimal()
 ```
 
-## Patrones temporales de la actividad docente
+El coeficiente de variación diario del profesorado es **`r round(cv_prof_dia, 2)`**, lo que indica **`r diag_prof_picos`**. Además, el **`r round(pct_clics_dias_pico, 1)`%** de sus eventos se concentra en el 10% de días más activos. También hay actividad fuera del horario formal: **`r round(prof_noche_fin$pct_noche, 1)`%** en horario nocturno y **`r round(prof_noche_fin$pct_fin_semana, 1)`%** en fin de semana.
 
-La Figura \@ref(fig:evol-diaria-prof) representa la evolución diaria de la actividad del profesorado a lo largo del curso. A diferencia del alumnado, que muestra una actividad continua con picos asociados a entregas, el profesorado presenta un patrón más intermitente. El coeficiente de variación diario es de **`r round(cv_prof_dia, 2)`**, lo que indica un patrón de **`r diag_prof_picos`**: el **`r round(pct_clics_dias_pico, 1)`%** de los clics se concentra en tan solo el 10% de los días más activos, representados en la figura por los valores que superan la línea discontinua roja. Estos picos corresponden probablemente a jornadas de publicación de nuevo material, corrección de tareas o configuración del curso.
-
-```{r evol-diaria-prof, fig.cap="Evolución diaria de la actividad del profesorado. La línea discontinua roja representa el percentil 90; los días que la superan concentran una fracción desproporcionada de la actividad total."}
+```{r evol-diaria-prof, fig.cap="Evolución diaria de la actividad del profesorado."}
 ggplot(prof_por_dia, aes(x = Solo_Fecha, y = clics_dia)) +
   geom_line(color = "#6A51A3", linewidth = 0.8) +
   geom_hline(yintercept = cuantil_90_prof, linetype = "dashed", color = "red") +
@@ -575,27 +417,20 @@ ggplot(prof_por_dia, aes(x = Solo_Fecha, y = clics_dia)) +
   theme_minimal()
 ```
 
-Un aspecto destacable del patrón temporal docente es la actividad fuera del horario lectivo convencional. El **`r round(prof_noche_fin$pct_noche, 1)`%** de los eventos del profesorado se produce en horario nocturno (entre las 22:00 y las 06:00) y el **`r round(prof_noche_fin$pct_fin_semana, 1)`%** en fin de semana. Estos porcentajes indican que la gestión del Aula Virtual requiere dedicación más allá del horario de trabajo formal.
-
-## Tipo y distribución temporal del contenido creado
-
-No toda la actividad del profesorado es equivalente. Para caracterizar mejor el trabajo docente se analizaron las acciones de creación y actualización de contenido, clasificándolas según si corresponden a material de tipo teórico (recursos, archivos, páginas, foros) o práctico (tareas, cuestionarios, prácticas). La Tabla \@ref(tab:teoria-practica) recoge esta distribución.
-
 ```{r teoria-practica}
-kable(
-  teoria_practica_prof,
-  booktabs  = TRUE,
-  col.names = c("Tipo de contenido", "Acciones", "% del total"),
-  caption   = "Distribución de las acciones de creación y actualización de contenido docente según su tipo."
+kable(teoria_practica_prof,
+  booktabs = TRUE, col.names = c("Tipo de contenido", "Acciones", "% del total"),
+  caption = "Acciones de creación o actualización de contenido docente."
 ) %>%
   kable_styling(latex_options = c("hold_position"))
 ```
 
-La Figura \@ref(fig:evol-creacion) muestra cómo evoluciona esta actividad de creación a lo largo del semestre. El resultado es claro: **`r diag_creacion`**. Concretamente, el **`r round(pct_material_inicio, 1)`%** de todas las acciones de creación y actualización se realizó en las cuatro primeras semanas del curso. Esto sugiere que la estructura del Aula Virtual se diseña y carga mayoritariamente antes de que el curso entre en pleno funcionamiento, y que posteriormente el profesorado realiza únicamente ajustes puntuales.
+La creación de contenidos presenta este patrón: **`r diag_creacion`**. En concreto, el **`r round(pct_material_inicio, 1)`%** de las acciones de creación se realiza en las cuatro primeras semanas. Los eventos de seguimiento del alumnado suman **`r vigilancia_prof$clics_vigilancia`** clics, equivalentes al **`r vigilancia_prof$pct_vigilancia`%** de la actividad docente.
 
-```{r evol-creacion, fig.cap="Evolución semanal de las acciones de creación y actualización de contenido docente. La actividad se concentra mayoritariamente en las primeras semanas del curso."}
+```{r evol-creacion, fig.cap="Evolución semanal de acciones de creación docente."}
 if (nrow(material_prof) > 0) {
-  material_prof %>% count(Semana) %>%
+  material_prof %>%
+    count(Semana) %>%
     ggplot(aes(x = Semana, y = n)) +
     geom_line(color = "#31A354", linewidth = 0.8) +
     geom_point(color = "#31A354", size = 1.5) +
@@ -604,19 +439,11 @@ if (nrow(material_prof) > 0) {
 }
 ```
 
-Finalmente, el profesorado también dedica parte de su tiempo a monitorizar la actividad del alumnado: **`r vigilancia_prof$clics_vigilancia`** clics (**`r vigilancia_prof$pct_vigilancia`%** de su actividad total) corresponden a eventos de consulta de informes de actividad, listas de usuarios o registros de notas. Aunque es una proporción pequeña, refleja un seguimiento activo del progreso del grupo, lo que es una práctica pedagógica recomendable para detectar alumnos con dificultades o con una participación insuficiente.
-
-\newpage
-
 # Comparativa entre alumnos y profesores
 
-El contraste entre los perfiles de uso de alumnos y profesores permite entender mejor cómo cada grupo interactúa con la plataforma y qué relación existe entre las decisiones docentes y el comportamiento del alumnado.
+La latencia de apertura mide el tiempo que transcurre entre la publicación de un módulo y su primera apertura por parte del alumnado. También aquí se aplica Hampel para eliminar latencias extremas que pueden deberse a materiales publicados con mucha antelación o poco visibles.
 
-## Velocidad de reacción ante nuevo material
-
-Podemos analizar también el tiempo que transcurre desde que el profesorado publica un nuevo módulo hasta que un alumno lo abre por primera vez. Este indicador, denominado latencia de apertura, refleja como de receptivos son los alumnos ante los nuevos contenidos. La Figura \@ref(fig:latencia) muestra la distribución de esta latencia para todos los módulos para los que se dispone de datos tanto de publicación como de primera apertura.
-
-```{r latencia, fig.cap="Distribución de la latencia de apertura del material nuevo, medida en horas desde la publicación hasta la primera apertura por parte de un alumno."}
+```{r latencia, fig.cap="Latencia de apertura del material nuevo tras aplicar Hampel."}
 if (nrow(latencia_apertura) > 0) {
   ggplot(latencia_apertura, aes(x = horas_apertura)) +
     geom_histogram(bins = 30, fill = "#6BAED6", color = "white") +
@@ -625,28 +452,19 @@ if (nrow(latencia_apertura) > 0) {
 }
 ```
 
-La distribución es marcadamente asimétrica: la mediana se sitúa en **`r round(mediana_latencia, 1)`** horas, pero la media es de **`r round(media_latencia, 1)`** horas, lo que indica la presencia de una cola de módulos que tardan mucho más en ser abiertos. Esta diferencia entre media y mediana es informativa: la mayoría de los módulos se abren con relativa rapidez, pero hay un subconjunto que pasa desapercibido durante días o incluso semanas. 
-
-## Herramientas de uso exclusivo del profesorado
-
-El análisis de los componentes del Aula Virtual revela una separación funcional clara entre los dos perfiles de usuario. Se han identificado **`r length(herramientas_excl_prof)`** componentes que los profesores utilizan pero que no generan ningún evento en los registros del alumnado. La Tabla \@ref(tab:herramientas-excl) los enumera.
+Tras la limpieza, la mediana de latencia es **`r round(mediana_latencia, 1)`** horas y la media es **`r round(media_latencia, 1)`** horas. La diferencia entre ambas sigue siendo relevante si la distribución conserva asimetría, pero el resultado queda menos dominado por esperas extremas.
 
 ```{r herramientas-excl}
-kable(
-  tibble(Componente = herramientas_excl_prof),
+kable(tibble(Componente = herramientas_excl_prof),
   booktabs = TRUE,
-  caption  = "Componentes del Aula Virtual utilizados por el profesorado y no por el alumnado."
+  caption = "Componentes utilizados por el profesorado y no por el alumnado."
 ) %>%
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-Estos componentes corresponden principalmente a herramientas de administración, configuración y seguimiento del curso: gestión de grupos, configuración de permisos, administración del sistema de calificaciones, etc. Su ausencia en los logs del alumnado no es una anomalía sino una característica estructural del diseño de Moodle: estas herramientas solo son accesibles para roles con permisos de edición. Este resultado confirma que la clasificación operativa de roles adoptada en la sección de preparación de datos es coherente y que los dos grupos realmente hacen un uso funcionalmente diferente de la plataforma.
+Las herramientas exclusivas del profesorado son componentes de administración, configuración y seguimiento. Su ausencia en el alumnado no es un problema de datos: refleja permisos y funciones diferentes dentro de Moodle.
 
-## Coincidencia en los patrones semanales
-
-Una última dimensión de interés es el grado en que alumnos y profesores comparten los mismos patrones de actividad semanal. La Figura \@ref(fig:solape-dias) compara la distribución relativa de eventos por día de la semana para cada grupo. Visualmente, ambas distribuciones siguen una forma similar: mayor actividad de lunes a jueves y caída pronunciada el fin de semana. Sin embargo, hay diferencias apreciables en los días de máxima actividad: los alumnos alcanzan su pico el **`r dia_top_alumnos`**, mientras que los profesores lo hacen el **`r dia_top_profes`**. El índice de solape entre ambas distribuciones es del **`r round(indice_solape, 1)`%**, lo que indica una coincidencia considerable pero no total.
-
-```{r solape-dias, fig.cap="Comparativa de la distribución de actividad por día de la semana entre alumnos y profesores. Ambos grupos comparten el patrón general pero difieren en el día de máxima actividad."}
+```{r solape-dias, fig.cap="Comparativa de la distribución de actividad por día entre alumnado y profesorado."}
 comparativa_dias %>%
   mutate(pct_alumnos = 100 * p_alumnos, pct_profes = 100 * p_profes) %>%
   select(Dia_semana, pct_alumnos, pct_profes) %>%
@@ -659,44 +477,24 @@ comparativa_dias %>%
   theme_minimal()
 ```
 
-\newpage
+El índice de solape entre distribuciones semanales es del **`r round(indice_solape, 1)`%**. Ambos grupos comparten una mayor actividad entre semana y menor actividad en fin de semana, aunque el pico del alumnado se sitúa en **`r dia_top_alumnos`** y el del profesorado en **`r dia_top_profes`**.
 
 # Conclusiones
 
-El análisis exploratorio de los logs del Aula Virtual de la asignatura Tratamiento de Datos ha permitido caracterizar en detalle los patrones de uso de la plataforma por parte de alumnos y profesores durante el curso 202-2025, respondiendo a las preguntas de investigación planteadas al inicio del estudio.
+El análisis, ya depurado con el método de Hampel, muestra que el alumnado utiliza Moodle principalmente como repositorio de consulta, con predominio de eventos pasivos y una actividad concentrada en días lectivos y horas centrales. Aun tras eliminar usuarios con actividad extrema, se mantiene una heterogeneidad clara entre estudiantes: algunos distribuyen su actividad de forma sostenida y otros concentran gran parte de sus clics en semanas concretas, especialmente cerca de entregas o evaluaciones.
 
-En lo referente al **alumnado**, los resultados describen un grupo heterogéneo en el que conviven estrategias de uso muy distintas. La actividad se concentra en las horas centrales del día y en los días lectivos de entre semana, con el **`r alumnos_dia$Dia_semana[1]`** como jornada de mayor intensidad. Sin embargo, esta tendencia general oculta importantes diferencias individuales: la brecha entre el alumno más activo y el menos activo asciende a **`r max(clics_por_alumno$clics) - min(clics_por_alumno$clics)`** clics, lo que evidencia que no todos los estudiantes se implican con la plataforma de la misma manera. El hallazgo más relevante es la prevalencia del patrón de "atracón": el **`r round(prop_atracon, 1)`%** del alumnado concentra más de un tercio de su actividad en una única semana del semestre, en coincidencia con las fechas de entrega de tareas. Este comportamiento, que el análisis de los eventos de envío confirma, sugiere que muchos alumnos no mantienen un ritmo de trabajo sostenido y que la plataforma se utiliza fundamentalmente como herramienta reactiva ante los plazos de entrega más que como espacio de aprendizaje continuo. Además, el **`r round(pct_pasivo_alumnos, 1)`%** de las interacciones son de carácter pasivo, lo que refuerza la imagen de un alumnado que consulta más que participa.
+En el profesorado, la carga aparece menos homogénea y más intermitente. Hay picos de trabajo asociados a creación, actualización o seguimiento de materiales, junto con actividad fuera del horario lectivo y en fin de semana. La distribución por docentes sugiere una asignación desigual de responsabilidades dentro de la asignatura.
 
-En cuanto al **profesorado**, el dato más llamativo es la marcada asimetría en la distribución de la carga de trabajo: un único docente concentra casi la totalidad de la actividad registrada. El patrón temporal es igualmente irregular, con una actividad que se concentra en picos puntuales —especialmente al inicio del semestre, cuando se carga la mayor parte del material— y que decae a niveles muy bajos en las semanas intermedias. La presencia en la plataforma fuera del horario lectivo, tanto en horario nocturno como en fin de semana, pone de manifiesto que la gestión del Aula Virtual conlleva una dedicación.
+La comparación entre roles confirma diferencias funcionales: el profesorado utiliza componentes administrativos y de seguimiento inaccesibles al alumnado, mientras que los alumnos concentran más eventos de visualización y acceso a recursos. Aunque ambos grupos siguen un patrón semanal parecido, no coinciden exactamente en el día de máxima actividad.
 
-La **comparativa entre grupos** revela diferencias funcionales claras que reflejan los distintos roles que cada perfil desempeña en la plataforma. Los profesores utilizan herramientas de administración y seguimiento inaccesibles para el alumnado. El alumnado reacciona con relativa rapidez ante la publicación de nuevo material —con una mediana de **`r round(mediana_latencia, 1)`** horas—, aunque existe una fracción de módulos que tardan considerablemente más en ser abiertos, lo que podría indicar déficits en la comunicación de las novedades del curso.
+La principal limitación es que los logs de Moodle registran clics, no aprendizaje real ni tiempo efectivo de lectura. Por tanto, los resultados deben interpretarse como patrones de interacción con la plataforma, no como medida directa del rendimiento académico.
 
-Como **limitación** principal, el estudio depende de los eventos que Moodle registra y pone a disposición del administrador, por lo que cualquier interacción que no quede reflejada en el log —como el tiempo de lectura de un documento o la visualización de vídeos alojados fuera de la plataforma— escapa al análisis. 
+# Anexo metodológico: criterio de Hampel
 
-\newpage
+El filtro de Hampel se ha aplicado con umbral `k = 3` usando la regla:
 
-# Anexos
+\[
+|x_i - \mathrm{mediana}(x)| > 3 \cdot 1.4826 \cdot \mathrm{MAD}(x)
+\]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+donde `MAD` es la desviación absoluta mediana. En este informe se usa para eliminar alumnos con clics acumulados anómalos antes de recalcular el análisis y para depurar latencias de apertura extremas. Este enfoque reduce la influencia de valores extremos sin depender de supuestos de normalidad.
