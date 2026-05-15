@@ -547,9 +547,7 @@ La principal limitación es que los logs de Moodle registran clics, no aprendiza
 # Anexo metodológico: criterio de Hampel
 
 El filtro de Hampel se ha aplicado con umbral `k = 3` usando la regla:
-
-\[
+$$
 |x_i - \mathrm{mediana}(x)| > 3 \cdot 1.4826 \cdot \mathrm{MAD}(x)
-\]
-
+$$
 donde `MAD` es la desviación absoluta mediana. En este informe se usa para eliminar alumnos con clics acumulados anómalos antes de recalcular el análisis y para depurar latencias de apertura extremas. Este enfoque reduce la influencia de valores extremos sin depender de supuestos de normalidad.
